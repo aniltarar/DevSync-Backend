@@ -62,6 +62,10 @@ const userSchema = new mongoose.Schema(
       linkedin: { type: String, trim: true, default: "" },
       portfolio: { type: String, trim: true, default: "" },
     },
+    titles:{
+      type: [String],
+      default: [],
+    },
     skills: {
       type: [String],
       default: [],

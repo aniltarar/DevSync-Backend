@@ -9,7 +9,7 @@ const generateTokens = async (user) => {
   // Kısa süreli erişim token'ı || Short-lived access token
   const accessToken = jwt.sign(
     {
-      userId: user._id,
+      _id: user._id,
       email: user.email,
     },
     process.env.ACCESS_TOKEN_SECRET,
@@ -19,7 +19,7 @@ const generateTokens = async (user) => {
   // Uzun süreli refresh token'ı || Long-lived refresh token
   const refreshToken = jwt.sign(
     {
-      userId: user._id,
+      _id: user._id,
     },
     process.env.REFRESH_TOKEN_SECRET,
     { expiresIn: "7d" }
@@ -191,7 +191,11 @@ const login = async (req, res) => {
       secure: false,
       sameSite: "none",
     });
-    res.status(200).json(userWithoutPassword);
+    res.status(200).json({
+      message: "Başarıyla giriş yapıldı.",
+      user: userWithoutPassword,
+      accessToken: tokens.accessToken,
+    });
   } catch (error) {
     res.status(500).json({ message: "Giriş işlemi başarısız.", error });
   }
@@ -206,10 +210,9 @@ const logout = async (req, res) => {
       });
     }
     const deletedToken = await Token.deleteOne({ refreshToken });
-    if (!deletedToken) {
-      return res.status(400).json({
-        message:
-          "Refresh token veritabanında bulunamadı. Çıkış yaparken bir sorun oluştu.",
+    if (deletedToken.deletedCount === 0) {
+      return res.status(403).json({
+        message: "Geçersiz refresh token. Çıkış yaparken bir sorun oluştu.",
       });
     }
 
