@@ -6,8 +6,9 @@ const cookieParser = require("cookie-parser");
 const swaggerUi = require("swagger-ui-express");
 
 //routes import
-const authRoutes = require("@/routes/authRoute");
-const projectRoutes = require("@/routes/projectRoute");
+const authRoutes = require("@/routes/authRoute.js");
+const projectRoutes = require("@/routes/projectRoute.js");
+const postRoutes = require("@/routes/postRoute.js");
 
 //configs import
 dotenv.config();
@@ -30,6 +31,7 @@ app.get("/", (req, res) => {
 //Routes
 app.use("/auth", authRoutes);
 app.use("/projects", projectRoutes);
+app.use("/posts", postRoutes);
 
 //Swagger
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec,swaggerUiOptions));

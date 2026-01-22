@@ -1,4 +1,4 @@
-const Project = require("@/models/project");
+const Project = require("@/models/project.js");
 
 // Create Project
 const createProject = async (req, res) => {
@@ -67,7 +67,7 @@ const getProjectById = async (req, res) => {
 
     const project = await Project.findById(projectId).populate(
       "ownerId",
-      "username email profile"
+      "username email profile",
     );
 
     if (!project) {
@@ -115,7 +115,7 @@ const updateProject = async (req, res) => {
         projectType: projectType || project.projectType,
         status: status || project.status,
       },
-      { new: true }
+      { new: true },
     );
 
     res.status(200).json({
@@ -169,9 +169,12 @@ const getMyProjects = async (req, res) => {
       createdAt: -1,
     });
 
+    // Eğer proje yoksa boş dizi döndür ve mesaj ver.
     res.status(200).json({
       total: projects.length,
       data: projects,
+      message: projects.length === 0 ? "Henüz projeniz yok." : "Projeler başarıyla getirildi."
+      
     });
   } catch (error) {
     res.status(500).json({
