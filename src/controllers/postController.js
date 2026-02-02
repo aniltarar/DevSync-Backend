@@ -1,4 +1,6 @@
 const Post = require("@/models/post.js");
+const Comment = require("@/models/comment.js");
+const User = require("@/models/user.js");
 const mongoose = require("mongoose");
 
 // Create Post
@@ -58,13 +60,20 @@ const getAllPosts = async (req, res) => {
       .populate("authorId", "username email profile")
       .sort({ [sortField]: sortOrder })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean()
+      .exec();
+
+    const transformedPosts = posts.map(({ authorId, ...post }) => ({
+      ...post,
+      author: authorId,
+    }));
 
     const total = await Post.countDocuments(filter);
 
     return res.status(200).json({
       message: "Gönderiler başarıyla getirildi.",
-      posts,
+      posts: transformedPosts,
       pagination: {
         currentPage: page,
         totalPages: Math.ceil(total / limit),
@@ -92,10 +101,51 @@ const getPostById = async (req, res) => {
         message: "Gönderi bulunamadı.",
       });
     }
-    res.status(200).json(post);
+    // İlgili postun yorumlarını çek
+    const comments = await Comment.find({ postId: post._id }).populate(
+      "authorId",
+      "username email",
+    );
+    res.status(200).json({
+      ...post.toObject(),
+      comments,
+    });
   } catch (error) {
     res.status(500).json({
       message: "Gönderi getirilemedi.",
+      error: error.message,
+    });
+  }
+};
+
+const getPostByUserId = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Geçersiz kullanıcı ID'si." });
+    }
+    const userExists = await User.exists({ _id: userId });
+    if (!userExists) {
+      return res.status(404).json({ message: "Kullanıcı bulunamadı." });
+    }
+    const posts = await Post.find({ authorId: userId })
+      .populate("authorId", "username email profile")
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
+
+    const transformedPosts = posts.map(({ authorId, ...post }) => ({
+      ...post,
+      author: authorId,
+    }));
+    res.status(200).json({
+      count: transformedPosts.length,
+      message: "Kullanıcının gönderileri başarıyla getirildi.",
+      posts: transformedPosts,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Gönderiler getirilemedi.",
       error: error.message,
     });
   }
@@ -147,6 +197,33 @@ const deletePost = async (req, res) => {
     });
   }
 };
+const likePost = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.user?._id;
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ message: "Gönderi bulunamadı." });
+    }
+
+    const alreadyLiked = post.engagement.likes.includes(userId);
+    if (alreadyLiked) {
+      post.engagement.likes.pull(userId);
+      await post.save();
+      return res.status(200).json({ message: "Gönderi beğenisi kaldırıldı.", content: post.content });
+    } else {
+      post.engagement.likes.push(userId);
+      await post.save();
+      return res.status(200).json({ message: "Gönderi beğenildi.",content:post.content });
+    }
+  } catch (error) {
+    res.status(500).json({
+      message: "Gönderi beğenilirken bir hata oluştu.",
+      error: error.message,
+    });
+  }
+};
 
 module.exports = {
   createPost,
@@ -154,4 +231,6 @@ module.exports = {
   getPostById,
   updatePost,
   deletePost,
+  likePost,
+  getPostByUserId,
 };

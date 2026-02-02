@@ -7,6 +7,8 @@ const {
   getPostById,
   updatePost,
   deletePost,
+  likePost,
+  getPostByUserId,
 } = require("@/controllers/postController");
 const { verifyAccessToken } = require("@/middlewares/authMiddleware");
 
@@ -122,6 +124,44 @@ router.post("/", verifyAccessToken, createPost);
 
 /**
  * @swagger
+ * /posts/user/{userId}:
+ *   get:
+ *     summary: Belirli bir kullanıcının tüm gönderilerini getir
+ *     tags:
+ *       - Posts
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - name: userId
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: 6574337cf052d49b0afb45ab
+ *         description: Kullanıcı ID'si (Mongo ObjectId)
+ *     responses:
+ *       200:
+ *         description: Kullanıcının gönderileri başarıyla getirildi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 posts:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Post'
+ *       400:
+ *         description: Geçersiz kullanıcı ID'si
+ *       500:
+ *         description: Sunucu hatası
+ */
+router.get("/user/:userId", verifyAccessToken, getPostByUserId);
+
+/**
+ * @swagger
  * /posts/{postId}:
  *   get:
  *     summary: Tek bir gönderiyi getir
@@ -202,5 +242,40 @@ router.put("/:postId", verifyAccessToken, updatePost);
  *         description: Yetki yok
  */
 router.delete("/:postId", verifyAccessToken, deletePost);
+
+/**
+ * @swagger
+ * /posts/{postId}/like:
+ *   post:
+ *     summary: Gönderiyi beğen/beğeniyi kaldır
+ *     description: Gönderiyi beğen veya önceden beğenmişse beğeniyi kaldır (toggle)
+ *     tags:
+ *       - Posts
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - name: postId
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: 6574337cf052d49b0afb45ab
+ *     responses:
+ *       200:
+ *         description: Beğeni işlemi başarılı
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Gönderi beğenildi."
+ *       404:
+ *         description: Gönderi bulunamadı
+ *       500:
+ *         description: Sunucu hatası
+ */
+router.post("/:postId/like", verifyAccessToken, likePost);
 
 module.exports = router;

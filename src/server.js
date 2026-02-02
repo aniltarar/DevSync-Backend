@@ -9,6 +9,7 @@ const swaggerUi = require("swagger-ui-express");
 const authRoutes = require("@/routes/authRoute.js");
 const projectRoutes = require("@/routes/projectRoute.js");
 const postRoutes = require("@/routes/postRoute.js");
+const commentRoutes = require("@/routes/commentRoute.js");
 
 //configs import
 dotenv.config();
@@ -32,6 +33,7 @@ app.get("/", (req, res) => {
 app.use("/auth", authRoutes);
 app.use("/projects", projectRoutes);
 app.use("/posts", postRoutes);
+app.use("/comments", commentRoutes);
 
 //Swagger
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec,swaggerUiOptions));
