@@ -11,6 +11,7 @@ const projectRoutes = require("@/routes/projectRoute.js");
 const postRoutes = require("@/routes/postRoute.js");
 const commentRoutes = require("@/routes/commentRoute.js");
 
+
 //configs import
 dotenv.config();
 const connectDB = require("@/config/databaseConfig");
@@ -34,6 +35,7 @@ app.use("/auth", authRoutes);
 app.use("/projects", projectRoutes);
 app.use("/posts", postRoutes);
 app.use("/comments", commentRoutes);
+app.use("/applications", require("@/routes/applicationRoute.js"));
 
 //Swagger
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec,swaggerUiOptions));

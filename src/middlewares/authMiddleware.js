@@ -12,7 +12,7 @@ const verifyAccessToken = (req, res, next) => {
     req.user = decoded;
     next();
   } catch (error) {
-    return res.status(403).json({ message: "Geçersiz access token." });
+    return res.status(403).json({ message: "Geçersiz access token. Süresi dolmuş olabilir." });
   }
 };
 
