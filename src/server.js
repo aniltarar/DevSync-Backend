@@ -10,7 +10,8 @@ const authRoutes = require("@/routes/authRoute.js");
 const projectRoutes = require("@/routes/projectRoute.js");
 const postRoutes = require("@/routes/postRoute.js");
 const commentRoutes = require("@/routes/commentRoute.js");
-
+const applicationRoutes = require("@/routes/applicationRoute.js");
+const reportRoutes = require("@/routes/reportRoute.js");
 
 //configs import
 dotenv.config();
@@ -19,10 +20,12 @@ const { swaggerSpec, swaggerUiOptions } = require("@/config/swaggerConfig");
 
 const app = express();
 
-app.use(cors({
-  origin: true,
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  }),
+);
 app.use(express.json());
 app.use(cookieParser());
 
@@ -35,10 +38,15 @@ app.use("/auth", authRoutes);
 app.use("/projects", projectRoutes);
 app.use("/posts", postRoutes);
 app.use("/comments", commentRoutes);
-app.use("/applications", require("@/routes/applicationRoute.js"));
+app.use("/applications", applicationRoutes);
+app.use("/reports", reportRoutes);
 
 //Swagger
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec,swaggerUiOptions));
+app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, swaggerUiOptions),
+);
 
 connectDB().then(() => {
   app.listen(process.env.PORT, () => {

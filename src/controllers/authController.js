@@ -11,6 +11,7 @@ const generateTokens = async (user) => {
     {
       _id: user._id,
       email: user.email,
+      role: user.role,
     },
     process.env.ACCESS_TOKEN_SECRET,
     { expiresIn: "15m" }
