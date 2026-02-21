@@ -12,6 +12,7 @@ const postRoutes = require("@/routes/postRoute.js");
 const commentRoutes = require("@/routes/commentRoute.js");
 const applicationRoutes = require("@/routes/applicationRoute.js");
 const reportRoutes = require("@/routes/reportRoute.js");
+const chatRoutes = require("@/routes/chatRoute.js");
 
 //configs import
 dotenv.config();
@@ -40,6 +41,7 @@ app.use("/posts", postRoutes);
 app.use("/comments", commentRoutes);
 app.use("/applications", applicationRoutes);
 app.use("/reports", reportRoutes);
+app.use("/chat", chatRoutes);
 
 //Swagger
 app.use(

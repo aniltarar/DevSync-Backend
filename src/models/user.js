@@ -62,7 +62,7 @@ const userSchema = new mongoose.Schema(
       linkedin: { type: String, trim: true, default: "" },
       portfolio: { type: String, trim: true, default: "" },
     },
-    titles:{
+    titles: {
       type: [String],
       default: [],
     },
@@ -74,8 +74,23 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    onlineStatus: {
+      type: String,
+      enum: ["online", "offline", "away"],
+      default: "offline",
+    },
+    lastSeenAt: {
+      type: Date,
+      default: null,
+    },
+    blockedUsers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("User", userSchema);
