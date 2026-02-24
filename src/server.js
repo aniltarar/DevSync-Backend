@@ -1,9 +1,11 @@
 require("module-alias/register");
+const http = require("http");
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const cookieParser = require("cookie-parser");
 const swaggerUi = require("swagger-ui-express");
+const { initSocket } = require("@/socket/socketServer");
 
 //routes import
 const authRoutes = require("@/routes/authRoute.js");
@@ -50,8 +52,11 @@ app.use(
   swaggerUi.setup(swaggerSpec, swaggerUiOptions),
 );
 
+const server = http.createServer(app);
+initSocket(server);
+
 connectDB().then(() => {
-  app.listen(process.env.PORT, () => {
+  server.listen(process.env.PORT, () => {
     console.log(`***Server is running on port ${process.env.PORT}***`);
   });
 });

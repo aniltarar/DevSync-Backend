@@ -18,7 +18,7 @@ const swaggerOptions = {
     // Security tanımları ekleyin
     components: {
       securitySchemes: {
-        bearerAuth: {
+        BearerAuth: {
           type: "http",
           scheme: "bearer",
           bearerFormat: "JWT",
@@ -28,7 +28,7 @@ const swaggerOptions = {
     },
     security: [
       {
-        bearerAuth: [],
+        BearerAuth: [],
       },
     ],
   },

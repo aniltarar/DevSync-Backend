@@ -14,6 +14,46 @@ const { verifyAccessToken } = require("@/middlewares/authMiddleware");
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     Post:
+ *       type: object
+ *       properties:
+ *         _id:
+ *           type: string
+ *           example: 6574337cf052d49b0afb45ab
+ *         authorId:
+ *           type: string
+ *           example: 6574337cf052d49b0afb45ab
+ *         content:
+ *           type: string
+ *           example: Merhaba dünya!
+ *         tags:
+ *           type: array
+ *           items:
+ *             type: string
+ *           example: [react, nodejs]
+ *         engagement:
+ *           type: object
+ *           properties:
+ *             likes:
+ *               type: array
+ *               items:
+ *                 type: string
+ *               example: []
+ *             commentsCount:
+ *               type: integer
+ *               example: 0
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ */
+
+/**
+ * @swagger
  * /posts:
  *   get:
  *     summary: Tüm gönderileri listele

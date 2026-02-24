@@ -177,7 +177,7 @@ router.get("/", verifyAccessToken, getAllProjects);
  *       500:
  *         description: Sunucu hatası
  */
-router.get("/:projectId", getProjectById);
+router.get("/:projectId", verifyAccessToken, getProjectById);
 
 /**
  * @swagger
