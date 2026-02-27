@@ -3,11 +3,18 @@ const User = require("@/models/user");
 const socketAuthMiddleware = require("@/middlewares/socketAuthMiddleware");
 const chatHandler = require("@/socket/handlers/chatHandler");
 
-// userId → socketId haritası (bellekte tutulur)
-const onlineUsers = new Map();
+// io instance — controller'lardan erişim için
+let io = null;
+
+const getIO = () => {
+  if (!io) {
+    throw new Error("Socket.IO henüz başlatılmadı.");
+  }
+  return io;
+};
 
 const initSocket = (server) => {
-  const io = new Server(server, {
+  io = new Server(server, {
     cors: {
       origin: true,
       credentials: true,
@@ -24,19 +31,24 @@ const initSocket = (server) => {
   // ========================
   io.on("connection", async (socket) => {
     const userId = socket.userId;
-    console.log(`[Socket] Kullanıcı bağlandı: User ID => ${userId}  Socket ID => ${socket.id}ß`);
+    console.log(`[Socket] Kullanıcı bağlandı: User ID => ${userId}  Socket ID => ${socket.id}`);
 
-    // Online listesine ekle
-    onlineUsers.set(userId, socket.id);
-
-    // Kullanıcıyı online yap
-    await User.findByIdAndUpdate(userId, { onlineStatus: "online" });
+    // Kullanıcıyı online yap + username'i socket'a kaydet
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { onlineStatus: "online" },
+      { new: true },
+    );
+    socket.username = user?.username || userId;
 
     // Herkese bu kullanıcının online olduğunu bildir
-    socket.broadcast.emit("userOnline", { userId });
+    socket.broadcast.emit("userOnline", {
+      userId,
+      username: socket.username,
+    });
 
     // Chat handler'larını kaydet
-    chatHandler(io, socket, onlineUsers);
+    chatHandler(io, socket);
 
     // ========================
     // BAĞLANTI KESİLMESİ
@@ -44,15 +56,21 @@ const initSocket = (server) => {
     socket.on("disconnect", async () => {
       console.log(`[Socket] Kullanıcı ayrıldı: ${userId} (${socket.id})`);
 
-      onlineUsers.delete(userId);
+      const lastSeenAt = new Date();
+      await User.findByIdAndUpdate(userId, {
+        onlineStatus: "offline",
+        lastSeenAt,
+      });
 
-      await User.findByIdAndUpdate(userId, { onlineStatus: "offline" });
-
-      socket.broadcast.emit("userOffline", { userId });
+      socket.broadcast.emit("userOffline", {
+        userId,
+        username: socket.username,
+        lastSeenAt,
+      });
     });
   });
 
   return io;
 };
 
-module.exports = { initSocket, onlineUsers };
+module.exports = { initSocket, getIO };
