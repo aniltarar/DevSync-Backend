@@ -239,9 +239,42 @@ const logout = async (req, res) => {
   }
 };
 
+// Avatar Yükleme Fonksiyonu || Upload Avatar Function
+const uploadAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "Dosya yüklenmedi." });
+    }
+
+    const avatarUrl = `/uploads/images/${req.file.filename}`;
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { "profile.avatarUrl": avatarUrl },
+      { new: true }
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "Kullanıcı bulunamadı." });
+    }
+
+    res.status(200).json({
+      message: "Profil fotoğrafı başarıyla yüklendi.",
+      avatarUrl,
+      profile: user.profile,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Profil fotoğrafı yüklenirken hata oluştu.",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
   tokenRefresh,
   logout,
+  uploadAvatar,
 };

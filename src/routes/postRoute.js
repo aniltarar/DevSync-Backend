@@ -11,46 +11,7 @@ const {
   getPostByUserId,
 } = require("@/controllers/postController");
 const { verifyAccessToken } = require("@/middlewares/authMiddleware");
-
-/**
- * @swagger
- * components:
- *   schemas:
- *     Post:
- *       type: object
- *       properties:
- *         _id:
- *           type: string
- *           example: 6574337cf052d49b0afb45ab
- *         authorId:
- *           type: string
- *           example: 6574337cf052d49b0afb45ab
- *         content:
- *           type: string
- *           example: Merhaba dünya!
- *         tags:
- *           type: array
- *           items:
- *             type: string
- *           example: [react, nodejs]
- *         engagement:
- *           type: object
- *           properties:
- *             likes:
- *               type: array
- *               items:
- *                 type: string
- *               example: []
- *             commentsCount:
- *               type: integer
- *               example: 0
- *         createdAt:
- *           type: string
- *           format: date-time
- *         updatedAt:
- *           type: string
- *           format: date-time
- */
+const { uploadPostImage, handleMulterError } = require("@/config/multerConfig");
 
 /**
  * @swagger
@@ -133,6 +94,7 @@ router.get("/", verifyAccessToken, getAllPosts);
  * /posts:
  *   post:
  *     summary: Yeni gönderi oluştur
+ *     description: Gönderi oluştururken isteğe bağlı olarak en fazla 5 görsel yüklenebilir (max 5MB/görsel).
  *     tags:
  *       - Posts
  *     security:
@@ -140,7 +102,7 @@ router.get("/", verifyAccessToken, getAllPosts);
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
@@ -148,19 +110,29 @@ router.get("/", verifyAccessToken, getAllPosts);
  *             properties:
  *               content:
  *                 type: string
+ *                 description: Gönderi içeriği
  *                 example: Merhaba dünya!
  *               tags:
  *                 type: array
  *                 items:
  *                   type: string
+ *                 description: Gönderi etiketleri
  *                 example: [react, nodejs]
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: "Yüklenecek görseller (max 5 adet, JPEG/PNG/GIF/WebP, max 5MB)"
  *     responses:
  *       201:
- *         description: Gönderi oluşturuldu
+ *         description: Gönderi başarıyla oluşturuldu
  *       400:
- *         description: Geçersiz istek
+ *         description: Geçersiz istek veya dosya hatası
+ *       500:
+ *         description: Sunucu hatası
  */
-router.post("/", verifyAccessToken, createPost);
+router.post("/", verifyAccessToken, uploadPostImage, handleMulterError, createPost);
 
 /**
  * @swagger

@@ -18,6 +18,10 @@ const postSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    images:[{
+      url:{type:String, required:true},
+      originalName:{type:String, required:true},
+    }],
     engagement: {
       likes: [
         {

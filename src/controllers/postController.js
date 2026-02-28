@@ -11,10 +11,24 @@ const createPost = async (req, res) => {
       return res.status(400).json({ message: "İçerik alanı zorunludur." });
     }
     const authorId = req.user?._id;
+
+    const userExists = await User.exists({ _id: authorId });
+    if (!userExists) {
+      return res.status(404).json({ message: "Kullanıcı bulunamadı." });
+    }
+
+    const images = req.files
+      ? req.files.map((file) => ({
+          url: `/uploads/images/${file.filename}`,
+          originalName: file.originalname,
+        }))
+      : [];
+
     const post = await Post.create({
       authorId,
       content,
       tags: tags || [],
+      images,
     });
     res.status(201).json({
       message: "Gönderi başarıyla oluşturuldu.",
@@ -211,11 +225,18 @@ const likePost = async (req, res) => {
     if (alreadyLiked) {
       post.engagement.likes.pull(userId);
       await post.save();
-      return res.status(200).json({ message: "Gönderi beğenisi kaldırıldı.", content: post.content });
+      return res
+        .status(200)
+        .json({
+          message: "Gönderi beğenisi kaldırıldı.",
+          content: post.content,
+        });
     } else {
       post.engagement.likes.push(userId);
       await post.save();
-      return res.status(200).json({ message: "Gönderi beğenildi.",content:post.content });
+      return res
+        .status(200)
+        .json({ message: "Gönderi beğenildi.", content: post.content });
     }
   } catch (error) {
     res.status(500).json({

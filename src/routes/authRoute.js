@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { register, login, tokenRefresh, logout } = require('@/controllers/authController');
+const { register, login, tokenRefresh, logout, uploadAvatar } = require('@/controllers/authController');
+const { verifyAccessToken } = require('@/middlewares/authMiddleware');
+const { uploadAvatar: uploadAvatarMiddleware, handleMulterError } = require('@/config/multerConfig');
 
 /**
  * @swagger
@@ -191,5 +193,64 @@ router.post('/token-refresh', tokenRefresh);
  *         description: Sunucu hatası
  */
 router.post('/logout', logout);
+
+/**
+ * @swagger
+ * /auth/avatar:
+ *   post:
+ *     summary: Profil fotoğrafı yükle
+ *     description: Kullanıcının profil fotoğrafını yükler veya günceller. Maksimum 5MB, JPEG/PNG/GIF/WebP.
+ *     tags:
+ *       - Authentication
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - avatar
+ *             properties:
+ *               avatar:
+ *                 type: string
+ *                 format: binary
+ *                 description: Yüklenecek profil fotoğrafı (JPEG/PNG/GIF/WebP, max 5MB)
+ *     responses:
+ *       200:
+ *         description: Profil fotoğrafı başarıyla yüklendi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Profil fotoğrafı başarıyla yüklendi.
+ *                 avatarUrl:
+ *                   type: string
+ *                   example: /uploads/images/avatar-1740700000000-123456789.jpg
+ *                 profile:
+ *                   type: object
+ *                   properties:
+ *                     name:
+ *                       type: string
+ *                     surname:
+ *                       type: string
+ *                     bio:
+ *                       type: string
+ *                     avatarUrl:
+ *                       type: string
+ *                     location:
+ *                       type: string
+ *       400:
+ *         description: Dosya yüklenmedi veya geçersiz format
+ *       401:
+ *         description: Yetkilendirme hatası
+ *       500:
+ *         description: Sunucu hatası
+ */
+router.post('/avatar', verifyAccessToken, uploadAvatarMiddleware, handleMulterError, uploadAvatar);
 
 module.exports = router;

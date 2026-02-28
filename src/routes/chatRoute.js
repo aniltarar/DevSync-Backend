@@ -14,6 +14,7 @@ const {
   getUnreadCount,
 } = require("@/controllers/chatController");
 const { verifyAccessToken } = require("@/middlewares/authMiddleware");
+const { uploadChatFile, handleMulterError } = require("@/config/multerConfig");
 
 /**
  * @swagger
@@ -156,7 +157,11 @@ router.delete("/conversations/:conversationId", verifyAccessToken, deleteConvers
  * @swagger
  * /chat/conversations/{conversationId}/messages:
  *   post:
- *     summary: Mesaj gönder
+ *     summary: Mesaj gönder (dosya ekli veya metin)
+ *     description: >
+ *       Metin mesajı veya dosya ekli mesaj gönderir.
+ *       Dosya göndermek için multipart/form-data kullanılmalıdır.
+ *       Desteklenen dosya türleri: JPEG, PNG, GIF, WebP (max 10MB).
  *     tags:
  *       - Chat
  *     security:
@@ -167,9 +172,29 @@ router.delete("/conversations/:conversationId", verifyAccessToken, deleteConvers
  *         required: true
  *         schema:
  *           type: string
+ *         example: 6574337cf052d49b0afb45ab
  *     requestBody:
  *       required: true
  *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - content
+ *             properties:
+ *               content:
+ *                 type: string
+ *                 description: Mesaj içeriği (max 300 karakter)
+ *                 example: Merhaba!
+ *               messageType:
+ *                 type: string
+ *                 enum: [text, image, file, notification]
+ *                 default: text
+ *                 description: Mesaj türü (dosya yüklenirse otomatik belirlenir)
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: "Eklenecek dosya (JPEG/PNG/GIF/WebP, max 10MB)"
  *         application/json:
  *           schema:
  *             type: object
@@ -179,33 +204,53 @@ router.delete("/conversations/:conversationId", verifyAccessToken, deleteConvers
  *               content:
  *                 type: string
  *                 example: Merhaba!
- *                 description: Mesaj içeriği (max 300 karakter)
  *               messageType:
  *                 type: string
  *                 enum: [text, image, file, notification]
  *                 default: text
- *               fileData:
- *                 type: object
- *                 properties:
- *                   fileName:
- *                     type: string
- *                   fileUrl:
- *                     type: string
- *                   fileType:
- *                     type: string
- *                   fileSize:
- *                     type: number
  *     responses:
  *       201:
  *         description: Mesaj başarıyla gönderildi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Mesaj başarıyla gönderildi.
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     conversationId:
+ *                       type: string
+ *                     senderId:
+ *                       type: object
+ *                     content:
+ *                       type: string
+ *                     messageType:
+ *                       type: string
+ *                     fileData:
+ *                       type: object
+ *                       properties:
+ *                         fileName:
+ *                           type: string
+ *                         fileUrl:
+ *                           type: string
+ *                         fileType:
+ *                           type: string
+ *                         fileSize:
+ *                           type: number
  *       400:
- *         description: Arşivlenmiş sohbete mesaj gönderilemez
+ *         description: Arşivlenmiş sohbete mesaj gönderilemez veya dosya hatası
  *       403:
  *         description: Yetki yok veya engellenmiş kullanıcı
  *       404:
  *         description: Sohbet bulunamadı
  */
-router.post("/conversations/:conversationId/messages", verifyAccessToken, sendMessage);
+router.post("/conversations/:conversationId/messages", verifyAccessToken, uploadChatFile, handleMulterError, sendMessage);
 
 /**
  * @swagger

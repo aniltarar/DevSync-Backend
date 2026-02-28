@@ -88,7 +88,21 @@ const sendMessage = async (req, res) => {
   try {
     const userId = req.user._id;
     const { conversationId } = req.params;
-    const result = await chatService.sendMessage(userId, conversationId, req.body);
+
+    // Multer ile yüklenen dosya varsa fileData ve messageType oluştur
+    const messageData = { ...req.body };
+    if (req.file) {
+      const isImage = req.file.mimetype.startsWith("image/");
+      messageData.messageType = isImage ? "image" : "file";
+      messageData.fileData = {
+        fileName: req.file.originalname,
+        fileUrl: `/uploads/${isImage ? "images" : "files"}/${req.file.filename}`,
+        fileType: req.file.mimetype,
+        fileSize: req.file.size,
+      };
+    }
+
+    const result = await chatService.sendMessage(userId, conversationId, messageData);
 
     if (result.error) {
       return res.status(result.status).json({ message: result.error });

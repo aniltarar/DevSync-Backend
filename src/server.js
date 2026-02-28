@@ -1,4 +1,5 @@
 require("module-alias/register");
+const path = require("path");
 const http = require("http");
 const express = require("express");
 const cors = require("cors");
@@ -31,6 +32,9 @@ app.use(
 );
 app.use(express.json());
 app.use(cookieParser());
+
+// Multer static dosya yolu
+app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
 app.get("/", (req, res) => {
   res.send("Welcome To API!");
