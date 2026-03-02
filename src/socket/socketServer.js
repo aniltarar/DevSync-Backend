@@ -2,6 +2,7 @@ const { Server } = require("socket.io");
 const User = require("@/models/user");
 const socketAuthMiddleware = require("@/middlewares/socketAuthMiddleware");
 const chatHandler = require("@/socket/handlers/chatHandler");
+const notificationHandler = require("@/socket/handlers/notificationHandler");
 
 // io instance — controller'lardan erişim için
 let io = null;
@@ -47,8 +48,12 @@ const initSocket = (server) => {
       username: socket.username,
     });
 
-    // Chat handler'larını kaydet
+    // Kullanıcının kişisel bildirim odasına katıl
+    socket.join(`user:${userId}`);
+
+    // Handler'ları kaydet
     chatHandler(io, socket);
+    notificationHandler(io, socket);
 
     // ========================
     // BAĞLANTI KESİLMESİ

@@ -1,5 +1,15 @@
 const multer = require("multer");
 const path = require("path");
+const fs = require("fs");
+
+// Upload klasörlerini oluştur (yoksa)
+const uploadDirs = ["uploads/images", "uploads/files"];
+uploadDirs.forEach((dir) => {
+  const fullPath = path.join(__dirname, "..", "..", dir);
+  if (!fs.existsSync(fullPath)) {
+    fs.mkdirSync(fullPath, { recursive: true });
+  }
+});
 
 // Dosya türleri
 const ALLOWED_IMAGE_TYPES = [
