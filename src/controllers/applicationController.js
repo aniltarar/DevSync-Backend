@@ -1,6 +1,7 @@
 const Application = require("@/models/application");
 const Project = require("@/models/project");
 const User = require("@/models/user");
+const notificationService = require("@/services/notificationService");
 
 // Projeye Başvuru Yap
 const applyToProjectSlot = async (req, res) => {
@@ -56,6 +57,15 @@ const applyToProjectSlot = async (req, res) => {
       message,
     });
     await application.save();
+
+    // Proje sahibine yeni başvuru bildirimi gönder
+    notificationService.createNotification({
+      recipientId: project.ownerId,
+      senderId: userId,
+      type: "new_application",
+      referenceId: application._id,
+      referenceModel: "Application",
+    }).catch(() => {});
 
     res.status(201).json({
       message: "Başvurunuz başarıyla gönderildi.",
@@ -246,13 +256,44 @@ const acceptApplication = async (req, res) => {
     // Kota doluysa slot statusunu güncelle ve diğer pending başvuruları otomatik reddet
     if (slot.filledBy.length >= slot.quota) {
       slot.status = "filled";
+
+      // Bildirim için updateMany öncesinde etkilenen başvuruları al
+      const pendingApps = await Application.find({
+        projectId: project._id,
+        slotId: slot._id,
+        status: "pending",
+      }).select("_id userId");
+
       await Application.updateMany(
         { projectId: project._id, slotId: slot._id, status: "pending" },
         { status: "rejected", respondedAt: new Date() },
       );
+
+      // Otomatik reddedilen başvurucuları bilgilendir
+      Promise.allSettled(
+        pendingApps.map((app) =>
+          notificationService.createNotification({
+            recipientId: app.userId,
+            senderId: userId,
+            type: "application_update",
+            referenceId: app._id,
+            referenceModel: "Application",
+          }),
+        ),
+      );
     }
 
     await project.save();
+
+    // Başvuruyu kabul edilen kullanıcıya bildirim gönder
+    notificationService.createNotification({
+      recipientId: application.userId,
+      senderId: userId,
+      type: "application_update",
+      referenceId: application._id,
+      referenceModel: "Application",
+    }).catch(() => {});
+
     res.status(200).json({
       message: "Başvuru başarıyla onaylandı.",
       application,
@@ -306,6 +347,15 @@ const rejectApplication = async (req, res) => {
     application.status = "rejected";
     application.respondedAt = new Date();
     await application.save();
+
+    // Başvuruyu reddedilen kullanıcıya bildirim gönder
+    notificationService.createNotification({
+      recipientId: application.userId,
+      senderId: userId,
+      type: "application_update",
+      referenceId: application._id,
+      referenceModel: "Application",
+    }).catch(() => {});
 
     res.status(200).json({
       message: "Başvuru başarıyla reddedildi.",

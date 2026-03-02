@@ -1,11 +1,16 @@
 require("module-alias/register");
+require("dotenv").config();
+
 const path = require("path");
 const http = require("http");
 const express = require("express");
 const cors = require("cors");
-const dotenv = require("dotenv");
 const cookieParser = require("cookie-parser");
 const swaggerUi = require("swagger-ui-express");
+
+//configs import
+const connectDB = require("@/config/databaseConfig");
+const { swaggerSpec, swaggerUiOptions } = require("@/config/swaggerConfig");
 const { initSocket } = require("@/socket/socketServer");
 
 //routes import
@@ -17,11 +22,6 @@ const applicationRoutes = require("@/routes/applicationRoute.js");
 const reportRoutes = require("@/routes/reportRoute.js");
 const chatRoutes = require("@/routes/chatRoute.js");
 const notificationRoutes = require("@/routes/notificationRoute.js");
-
-//configs import
-dotenv.config();
-const connectDB = require("@/config/databaseConfig");
-const { swaggerSpec, swaggerUiOptions } = require("@/config/swaggerConfig");
 
 const app = express();
 
@@ -38,7 +38,7 @@ app.use(cookieParser());
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
 app.get("/", (req, res) => {
-  res.send("Welcome To API!");
+  res.send("Welcome To DevSync API!");
 });
 
 //Routes

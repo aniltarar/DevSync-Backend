@@ -44,7 +44,9 @@ const {
  *                 description: Başvuru mesajı (opsiyonel, max 1000 karakter)
  *     responses:
  *       201:
- *         description: Başvuru başarıyla gönderildi
+ *         description: |
+ *           Başvuru başarıyla gönderildi.
+ *           Proje sahibine `new_application` tipi bildirim gönderilir.
  *         content:
  *           application/json:
  *             schema:
@@ -178,7 +180,10 @@ router.get("/:projectId", verifyAccessToken, viewApplicationsByPID);
  * /applications/accept/{applicationId}:
  *   post:
  *     summary: Başvuruyu onayla (proje sahibi)
- *     description: Başvuran kullanıcıyı pozisyona ekle. Kota doluysa diğer pending başvurular otomatik reddedilir.
+ *     description: |
+ *       Başvuran kullanıcıyı pozisyona ekle.
+ *       Kabul edilen kullanıcıya `application_update` bildirimi gönderilir.
+ *       Kota doluysa diğer pending başvurular otomatik reddedilir ve o kullanıcılara da `application_update` bildirimi gönderilir.
  *     tags:
  *       - Applications
  *     security:
@@ -219,6 +224,7 @@ router.post("/accept/:applicationId", verifyAccessToken, acceptApplication);
  * /applications/reject/{applicationId}:
  *   post:
  *     summary: Başvuruyu reddet (proje sahibi)
+ *     description: Reddedilen kullanıcıya `application_update` bildirimi gönderilir.
  *     tags:
  *       - Applications
  *     security:

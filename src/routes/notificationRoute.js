@@ -39,7 +39,11 @@ router.use(verifyAccessToken);
  *                   example: /uploads/images/avatar.jpg
  *         type:
  *           type: string
- *           enum: [like_post, like_comment, comment, reply, follow, application_update, project_invite, message]
+ *           enum: [like_post, like_comment, comment, reply, follow, new_application, application_update, project_invite, message]
+ *           description: |
+ *             Bildirim tipi:
+ *             - `new_application`: Proje sahibine — yeni başvuru alındı
+ *             - `application_update`: Başvurucuya — başvurusu kabul/reddedildi
  *           example: like_post
  *         referenceId:
  *           type: string

@@ -22,6 +22,7 @@ const notificationSchema = new mongoose.Schema(
         "comment",
         "reply",
         "follow",
+        "new_application",
         "application_update",
         "project_invite",
         "message",
