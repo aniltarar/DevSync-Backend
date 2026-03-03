@@ -1,5 +1,6 @@
 const Comment = require("@/models/comment.js");
 const Post = require("@/models/post.js");
+const { createNotification } = require("@/services/notificationService");
 
 const mongoose = require("mongoose");
 
@@ -27,6 +28,29 @@ const createComment = async (req, res) => {
 
     post.engagement.commentsCount += 1;
     await post.save();
+
+    // Post sahibine "comment" bildirimi
+    createNotification({
+      recipientId: post.authorId,
+      senderId: authorId,
+      type: "comment",
+      referenceId: comment._id,
+      referenceModel: "Comment",
+    }).catch(() => {});
+
+    // Yanıtsa parent yorum sahibine "reply" bildirimi
+    if (parentCommentId) {
+      const parentComment = await Comment.findById(parentCommentId).select("authorId");
+      if (parentComment && parentComment.authorId.toString() !== post.authorId.toString()) {
+        createNotification({
+          recipientId: parentComment.authorId,
+          senderId: authorId,
+          type: "reply",
+          referenceId: comment._id,
+          referenceModel: "Comment",
+        }).catch(() => {});
+      }
+    }
 
     res.status(201).json({
       message: "Yorum başarıyla oluşturuldu.",
@@ -149,6 +173,16 @@ const likeComment = async (req, res) => {
       // Beğeniyi ekle
       comment.likes.push(userId);
       await comment.save();
+
+      // Yorum sahibine "like_comment" bildirimi
+      createNotification({
+        recipientId: comment.authorId,
+        senderId: userId,
+        type: "like_comment",
+        referenceId: comment._id,
+        referenceModel: "Comment",
+      }).catch(() => {});
+
       return res.status(200).json({ message: "Yorum beğenildi." });
     }
   } catch (error) {
