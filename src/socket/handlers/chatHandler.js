@@ -1,4 +1,5 @@
 const Conversation = require("@/models/conversation");
+const chatService = require("@/services/chatService");
 
 const chatHandler = (io, socket) => {
   const userId = socket.userId;
@@ -53,6 +54,28 @@ const chatHandler = (io, socket) => {
       username: socket.username,
       conversationId,
     });
+  });
+
+  // ========================
+  // MESAJ GÖNDER (Socket)
+  // ========================
+  socket.on("sendMessage", async ({ conversationId, content, messageType, fileData }) => {
+    try {
+      const result = await chatService.sendMessage(userId, conversationId, {
+        content,
+        messageType,
+        fileData,
+      });
+
+      if (result.error) {
+        return socket.emit("chatError", { message: result.error });
+      }
+
+      // Odadaki herkese yeni mesajı ilet (gönderen dahil)
+      io.to(conversationId).emit("newMessage", result.data.data);
+    } catch (error) {
+      socket.emit("chatError", { message: "Mesaj gönderilemedi.", error: error.message });
+    }
   });
 };
 

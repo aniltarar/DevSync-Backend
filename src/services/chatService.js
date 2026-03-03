@@ -3,6 +3,7 @@ const Conversation = require("@/models/conversation");
 const Message = require("@/models/message");
 const User = require("@/models/user");
 const Project = require("@/models/project");
+const { createNotification } = require("@/services/notificationService");
 
 // ========================
 // CONVERSATION İŞLEMLERİ
@@ -254,6 +255,22 @@ const sendMessage = async (userId, conversationId, { content, messageType, fileD
 
   // Populate et (broadcast için gerekli)
   await message.populate("senderId", "username profile.name profile.surname profile.avatarUrl");
+
+  // Diğer katılımcılara bildirim oluştur
+  const otherParticipants = conversation.participants.filter(
+    (p) => p.toString() !== userId.toString(),
+  );
+  await Promise.all(
+    otherParticipants.map((participantId) =>
+      createNotification({
+        recipientId: participantId,
+        senderId: userId,
+        type: "message",
+        referenceId: conversation._id,
+        referenceModel: "Conversation",
+      }).catch(() => {}),
+    ),
+  );
 
   return {
     status: 201,
