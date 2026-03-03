@@ -1,6 +1,7 @@
 const Post = require("@/models/post.js");
 const Comment = require("@/models/comment.js");
 const User = require("@/models/user.js");
+const { createNotification } = require("@/services/notificationService");
 const mongoose = require("mongoose");
 
 // Create Post
@@ -234,6 +235,16 @@ const likePost = async (req, res) => {
     } else {
       post.engagement.likes.push(userId);
       await post.save();
+
+      // Post sahibine "like_post" bildirimi
+      createNotification({
+        recipientId: post.authorId,
+        senderId: userId,
+        type: "like_post",
+        referenceId: post._id,
+        referenceModel: "Post",
+      }).catch(() => {});
+
       return res
         .status(200)
         .json({ message: "Gönderi beğenildi.", content: post.content });
