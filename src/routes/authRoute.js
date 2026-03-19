@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { register, login, tokenRefresh, logout, uploadAvatar } = require('@/controllers/authController');
+const { register, login, tokenRefresh, logout, uploadAvatar, updateProfile } = require('@/controllers/authController');
 const { verifyAccessToken } = require('@/middlewares/authMiddleware');
 const { uploadAvatar: uploadAvatarMiddleware, handleMulterError } = require('@/config/multerConfig');
 
@@ -252,5 +252,68 @@ router.post('/logout', logout);
  *         description: Sunucu hatası
  */
 router.post('/avatar', verifyAccessToken, uploadAvatarMiddleware, handleMulterError, uploadAvatar);
+
+/**
+ * @swagger
+ * /auth/profile:
+ *   put:
+ *     summary: Profil güncelle
+ *     description: Kullanıcının profil bilgilerini günceller (avatar hariç)
+ *     tags:
+ *       - Authentication
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: johndoe
+ *               name:
+ *                 type: string
+ *                 example: John
+ *               surname:
+ *                 type: string
+ *                 example: Doe
+ *               bio:
+ *                 type: string
+ *                 example: Full-stack developer
+ *               location:
+ *                 type: string
+ *                 example: Istanbul, Turkey
+ *               socialLinks:
+ *                 type: object
+ *                 properties:
+ *                   github:
+ *                     type: string
+ *                   linkedin:
+ *                     type: string
+ *                   portfolio:
+ *                     type: string
+ *               titles:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               skills:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       200:
+ *         description: Profil başarıyla güncellendi
+ *       400:
+ *         description: Güncellenecek alan bulunamadı veya geçersiz veri
+ *       401:
+ *         description: Yetkilendirme hatası
+ *       409:
+ *         description: Kullanıcı adı zaten kullanılıyor
+ *       500:
+ *         description: Sunucu hatası
+ */
+router.put('/profile', verifyAccessToken, updateProfile);
 
 module.exports = router;

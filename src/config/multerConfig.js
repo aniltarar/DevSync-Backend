@@ -3,12 +3,10 @@ const path = require("path");
 const fs = require("fs");
 
 // Upload klasörlerini oluştur (yoksa)
+const UPLOAD_ROOT = path.join(__dirname, "..", "..");
 const uploadDirs = ["uploads/images", "uploads/files"];
 uploadDirs.forEach((dir) => {
-  const fullPath = path.join(__dirname, "..", "..", dir);
-  if (!fs.existsSync(fullPath)) {
-    fs.mkdirSync(fullPath, { recursive: true });
-  }
+  fs.mkdirSync(path.join(UPLOAD_ROOT, dir), { recursive: true });
 });
 
 // Dosya türleri
@@ -28,8 +26,8 @@ const FILE_MAX_SIZE = 10 * 1024 * 1024; // 10MB
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadPath = file.mimetype.startsWith("image/")
-      ? "uploads/images"
-      : "uploads/files";
+      ? path.join(UPLOAD_ROOT, "uploads/images")
+      : path.join(UPLOAD_ROOT, "uploads/files");
     cb(null, uploadPath);
   },
   filename: (req, file, cb) => {

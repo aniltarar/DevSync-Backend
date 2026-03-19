@@ -64,10 +64,18 @@ const userSchema = new mongoose.Schema(
     },
     titles: {
       type: [String],
+      validate: {
+        validator: (v) => v.length <= 10,
+        message: "En fazla 10 unvan eklenebilir.",
+      },
       default: [],
     },
     skills: {
       type: [String],
+      validate: {
+        validator: (v) => v.length <= 20,
+        message: "En fazla 20 yetenek eklenebilir.",
+      },
       default: [],
     },
     status: {

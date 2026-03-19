@@ -86,13 +86,15 @@ const register = async (req, res) => {
     res.cookie("refreshToken", tokens.refreshToken, {
       httpOnly: true,
       secure: false,
-      sameSite: "none",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     res.cookie("accessToken", tokens.accessToken, {
       httpOnly: true,
       secure: false,
-      sameSite: "none",
+      sameSite: "lax",
+      maxAge: 15 * 60 * 1000,
     });
     res.status(201).json(userWithoutPassword);
   } catch (error) {
@@ -100,12 +102,14 @@ const register = async (req, res) => {
   }
 };
 
+
+
 // Tokenleri yenilemek için fonksiyon || Function to refresh tokens
 
 const tokenRefresh = async (req, res) => {
   try {
     // refreshToken'in eski halini al || Get the old refreshToken
-    const oldRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+    const oldRefreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
     if (!oldRefreshToken) {
       return res.status(401).json({
         message: "Refresh token bulunamadı. Lütfen tekrar giriş yapın.",
@@ -130,12 +134,14 @@ const tokenRefresh = async (req, res) => {
     res.cookie("refreshToken", tokens.refreshToken, {
       httpOnly: true,
       secure: false,
-      sameSite: "none",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
     res.cookie("accessToken", tokens.accessToken, {
       httpOnly: true,
       secure: false,
-      sameSite: "none",
+      sameSite: "lax",
+      maxAge: 15 * 60 * 1000,
     });
 
     return res.status(200).json(tokens);
@@ -181,16 +187,20 @@ const login = async (req, res) => {
       email: user.email,
       role: user.role,
       socialLinks: user.socialLinks,
+      skills: user.skills,
+      titles: user.titles,
     };
     res.cookie("refreshToken", tokens.refreshToken, {
       httpOnly: true,
       secure: false,
-      sameSite: "none",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
     res.cookie("accessToken", tokens.accessToken, {
       httpOnly: true,
       secure: false,
-      sameSite: "none",
+      sameSite: "lax",
+      maxAge: 15 * 60 * 1000,
     });
     res.status(200).json({
       message: "Başarıyla giriş yapıldı.",
@@ -204,7 +214,7 @@ const login = async (req, res) => {
 
 const logout = async (req, res) => {
   try {
-    const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
+    const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
     if (!refreshToken) {
       return res.status(400).json({
         message: "Çıkış yapmak için refresh token gereklidir.",
@@ -220,12 +230,12 @@ const logout = async (req, res) => {
     res.clearCookie("refreshToken", {
       httpOnly: true,
       secure: false,
-      sameSite: "none",
+      sameSite: "lax",
     });
     res.clearCookie("accessToken", {
       httpOnly: true,
       secure: false,
-      sameSite: "none",
+      sameSite: "lax",
     });
 
     res.status(200).json({
@@ -271,10 +281,78 @@ const uploadAvatar = async (req, res) => {
   }
 };
 
+// Profil Güncelleme Fonksiyonu || Update Profile Function
+const PROFILE_FIELD_MAP = {
+  username: "username",
+  name: "profile.name",
+  surname: "profile.surname",
+  bio: "profile.bio",
+  location: "profile.location",
+  titles: "titles",
+  skills: "skills",
+};
+
+const SOCIAL_LINK_KEYS = ["github", "linkedin", "portfolio"];
+
+const updateProfile = async (req, res) => {
+  try {
+    const { socialLinks, ...rest } = req.body;
+
+    const updates = Object.entries(PROFILE_FIELD_MAP).reduce((acc, [bodyKey, dbKey]) => {
+      if (rest[bodyKey] !== undefined) acc[dbKey] = rest[bodyKey];
+      return acc;
+    }, {});
+
+    if (socialLinks) {
+      SOCIAL_LINK_KEYS.filter((key) => socialLinks[key] !== undefined).forEach((key) => {
+        updates[`socialLinks.${key}`] = socialLinks[key];
+      });
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: "Güncellenecek alan bulunamadı." });
+    }
+
+    if (updates.titles !== undefined && updates.titles.length > 10) {
+      return res.status(400).json({ message: "En fazla 10 unvan eklenebilir." });
+    }
+
+    if (updates.skills !== undefined && updates.skills.length > 20) {
+      return res.status(400).json({ message: "En fazla 20 yetenek eklenebilir." });
+    }
+
+    // Username benzersizlik kontrolü || Username uniqueness check
+    if (updates.username) {
+      const existingUser = await User.findOne({ username: updates.username, _id: { $ne: req.user._id } });
+      if (existingUser) {
+        return res.status(409).json({ message: "Bu kullanıcı adı zaten kullanılıyor." });
+      }
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { $set: updates },
+      { new: true, runValidators: true }
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "Kullanıcı bulunamadı." });
+    }
+
+    res.status(200).json({ message: "Profil başarıyla güncellendi.", user });
+  } catch (error) {
+    if (error.name === "ValidationError") {
+      return res.status(400).json({ message: "Geçersiz veri.", error: error.message });
+    }
+    res.status(500).json({ message: "Profil güncellenirken hata oluştu.", error: error.message });
+  }
+};
+
 module.exports = {
   register,
   login,
   tokenRefresh,
   logout,
   uploadAvatar,
+  updateProfile,
 };
