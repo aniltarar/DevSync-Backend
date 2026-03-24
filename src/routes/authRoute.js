@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { register, login, tokenRefresh, logout, uploadAvatar, updateProfile, getProfile } = require('@/controllers/authController');
+const { register, login, tokenRefresh, logout, uploadAvatar, updateProfile, getProfile, blockUser } = require('@/controllers/authController');
 const { verifyAccessToken } = require('@/middlewares/authMiddleware');
 const { uploadAvatar: uploadAvatarMiddleware, handleMulterError } = require('@/config/multerConfig');
 
@@ -372,5 +372,36 @@ router.put('/profile', verifyAccessToken, updateProfile);
  *         description: Sunucu hatası
  */
 router.get('/profile/:id', verifyAccessToken, getProfile);
+
+/**
+ * @swagger
+ * /auth/block/{userId}:
+ *   post:
+ *     summary: Kullanıcı engelle / engel kaldır
+ *     description: Verilen ID'li kullanıcıyı engeller. Zaten engelliyse engeli kaldırır (toggle).
+ *     tags:
+ *       - Authentication
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Engellenecek kullanıcının ID'si
+ *     responses:
+ *       200:
+ *         description: Kullanıcı engellendi veya engeli kaldırıldı
+ *       400:
+ *         description: Kendinizi engelleyemezsiniz
+ *       401:
+ *         description: Yetkilendirme hatası
+ *       404:
+ *         description: Kullanıcı bulunamadı
+ *       500:
+ *         description: Sunucu hatası
+ */
+router.post('/block/:userId', verifyAccessToken, blockUser);
 
 module.exports = router;

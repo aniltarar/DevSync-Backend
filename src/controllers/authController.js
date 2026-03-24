@@ -14,7 +14,7 @@ const generateTokens = async (user) => {
       role: user.role,
     },
     process.env.ACCESS_TOKEN_SECRET,
-    { expiresIn: "15m" }
+    { expiresIn: "15m" },
   );
 
   // Uzun süreli refresh token'ı || Long-lived refresh token
@@ -23,7 +23,7 @@ const generateTokens = async (user) => {
       _id: user._id,
     },
     process.env.REFRESH_TOKEN_SECRET,
-    { expiresIn: "7d" }
+    { expiresIn: "7d" },
   );
 
   //   DB'de kayıtlı olan token'ı sil. || Delete existing token in DB.
@@ -101,8 +101,6 @@ const register = async (req, res) => {
     res.status(500).json({ message: "Kayıt işlemi başarısız.", error });
   }
 };
-
-
 
 // Tokenleri yenilemek için fonksiyon || Function to refresh tokens
 
@@ -261,7 +259,7 @@ const uploadAvatar = async (req, res) => {
     const user = await User.findByIdAndUpdate(
       req.user._id,
       { "profile.avatarUrl": avatarUrl },
-      { new: true }
+      { new: true },
     ).select("-password");
 
     if (!user) {
@@ -298,41 +296,57 @@ const updateProfile = async (req, res) => {
   try {
     const { socialLinks, ...rest } = req.body;
 
-    const updates = Object.entries(PROFILE_FIELD_MAP).reduce((acc, [bodyKey, dbKey]) => {
-      if (rest[bodyKey] !== undefined) acc[dbKey] = rest[bodyKey];
-      return acc;
-    }, {});
+    const updates = Object.entries(PROFILE_FIELD_MAP).reduce(
+      (acc, [bodyKey, dbKey]) => {
+        if (rest[bodyKey] !== undefined) acc[dbKey] = rest[bodyKey];
+        return acc;
+      },
+      {},
+    );
 
     if (socialLinks) {
-      SOCIAL_LINK_KEYS.filter((key) => socialLinks[key] !== undefined).forEach((key) => {
-        updates[`socialLinks.${key}`] = socialLinks[key];
-      });
+      SOCIAL_LINK_KEYS.filter((key) => socialLinks[key] !== undefined).forEach(
+        (key) => {
+          updates[`socialLinks.${key}`] = socialLinks[key];
+        },
+      );
     }
 
     if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ message: "Güncellenecek alan bulunamadı." });
+      return res
+        .status(400)
+        .json({ message: "Güncellenecek alan bulunamadı." });
     }
 
     if (updates.titles !== undefined && updates.titles.length > 10) {
-      return res.status(400).json({ message: "En fazla 10 unvan eklenebilir." });
+      return res
+        .status(400)
+        .json({ message: "En fazla 10 unvan eklenebilir." });
     }
 
     if (updates.skills !== undefined && updates.skills.length > 20) {
-      return res.status(400).json({ message: "En fazla 20 yetenek eklenebilir." });
+      return res
+        .status(400)
+        .json({ message: "En fazla 20 yetenek eklenebilir." });
     }
 
     // Username benzersizlik kontrolü || Username uniqueness check
     if (updates.username) {
-      const existingUser = await User.findOne({ username: updates.username, _id: { $ne: req.user._id } });
+      const existingUser = await User.findOne({
+        username: updates.username,
+        _id: { $ne: req.user._id },
+      });
       if (existingUser) {
-        return res.status(409).json({ message: "Bu kullanıcı adı zaten kullanılıyor." });
+        return res
+          .status(409)
+          .json({ message: "Bu kullanıcı adı zaten kullanılıyor." });
       }
     }
 
     const user = await User.findByIdAndUpdate(
       req.user._id,
       { $set: updates },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     ).select("-password");
 
     if (!user) {
@@ -342,25 +356,72 @@ const updateProfile = async (req, res) => {
     res.status(200).json({ message: "Profil başarıyla güncellendi.", user });
   } catch (error) {
     if (error.name === "ValidationError") {
-      return res.status(400).json({ message: "Geçersiz veri.", error: error.message });
+      return res
+        .status(400)
+        .json({ message: "Geçersiz veri.", error: error.message });
     }
-    res.status(500).json({ message: "Profil güncellenirken hata oluştu.", error: error.message });
+    res
+      .status(500)
+      .json({
+        message: "Profil güncellenirken hata oluştu.",
+        error: error.message,
+      });
   }
 };
-
 
 // Profil Görüntüleme Fonksiyonu || Get Profile Function
 const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select(
-      "_id username profile email role socialLinks skills titles"
-    );
-    if (!user) {
+    const targetId = req.params.id;
+
+    const [currentUser, targetUser] = await Promise.all([
+      User.findById(req.user._id).select("blockedUsers"),
+      User.findById(targetId).select("_id username profile email role socialLinks skills titles blockedUsers"),
+    ]);
+
+    if (!targetUser) {
       return res.status(404).json({ message: "Kullanıcı bulunamadı." });
     }
-    res.status(200).json({ user });
+
+    const isBlocked = currentUser.blockedUsers.some((id) => id.toString() === targetId);
+    const isBlockedBy = targetUser.blockedUsers.some((id) => id.toString() === req.user._id.toString());
+
+    const { blockedUsers: _, ...user } = targetUser.toObject();
+    res.status(200).json({ user, isBlocked, isBlockedBy });
   } catch (error) {
     res.status(500).json({ message: "Profil getirilirken hata oluştu.", error: error.message });
+  }
+};
+
+// Kullanıcı Engelleme / Engel Kaldırma Fonksiyonu || Block / Unblock User Function
+const blockUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (userId === req.user._id.toString()) {
+      return res.status(400).json({ message: "Kendinizi engelleyemezsiniz." });
+    }
+
+    const userToBlock = await User.findById(userId);
+    if (!userToBlock) {
+      return res.status(404).json({ message: "Kullanıcı bulunamadı." });
+    }
+
+    const currentUser = await User.findById(req.user._id);
+    const isBlocked = currentUser.blockedUsers.includes(userId);
+
+    if (isBlocked) {
+      await User.findByIdAndUpdate(req.user._id, { $pull: { blockedUsers: userId } });
+      return res.status(200).json({ message: "Kullanıcı engeli kaldırıldı." });
+    } else {
+      await User.findByIdAndUpdate(req.user._id, { $addToSet: { blockedUsers: userId } });
+      return res.status(200).json({ message: "Kullanıcı engellendi." });
+    }
+  } catch (error) {
+    res.status(500).json({
+      message: "Kullanıcı engellenirken hata oluştu.",
+      error: error.message,
+    });
   }
 };
 
@@ -372,4 +433,5 @@ module.exports = {
   uploadAvatar,
   updateProfile,
   getProfile,
+  blockUser,
 };

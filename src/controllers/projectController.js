@@ -1,4 +1,5 @@
 const Project = require("@/models/project.js");
+const Application = require("@/models/application");
 
 // Create Project
 const createProject = async (req, res) => {
@@ -77,7 +78,12 @@ const getProjectById = async (req, res) => {
       });
     }
 
-    res.status(200).json(project);
+    const activeApplicationCount = await Application.countDocuments({
+      projectId,
+      status: "pending",
+    });
+
+    res.status(200).json({ ...project.toObject(), activeApplicationCount });
   } catch (error) {
     res.status(500).json({
       message: "Proje getirilemedi.",
@@ -117,12 +123,9 @@ const updateProject = async (req, res) => {
         status: status || project.status,
       },
       { new: true },
-    );
+    ).populate("ownerId", "username  profile");
 
-    res.status(200).json({
-      message: "Proje başarıyla güncellendi.",
-      project: updatedProject,
-    });
+    res.status(200).json(updatedProject);
   } catch (error) {
     res.status(500).json({
       message: "Proje güncellenemedi.",
