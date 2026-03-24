@@ -17,6 +17,12 @@ const postSchema = new mongoose.Schema(
     tags: {
       type: [String],
       default: [],
+      validate: {
+        validator: function (v) {
+          return v.length <= 10;
+        },
+        message: "En fazla 10 etiket eklenebilir.",
+      },
     },
     images:[{
       url:{type:String, required:true},

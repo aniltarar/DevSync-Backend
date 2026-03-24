@@ -37,15 +37,16 @@ const createProject = async (req, res) => {
 // Get All Projects
 const getAllProjects = async (req, res) => {
   try {
-    const { status, category, projectType } = req.query;
+    const { status, category, projectType, author } = req.query;
 
     const filters = {};
     if (status) filters.status = status;
     if (category) filters.category = category;
     if (projectType) filters.projectType = projectType;
+    if (author) filters.ownerId = author;
 
     const projects = await Project.find(filters)
-      .populate("ownerId", "username email profile")
+      .populate("ownerId", "username  profile")
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -67,7 +68,7 @@ const getProjectById = async (req, res) => {
 
     const project = await Project.findById(projectId).populate(
       "ownerId",
-      "username email profile",
+      "username  profile",
     );
 
     if (!project) {

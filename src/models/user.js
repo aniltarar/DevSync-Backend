@@ -35,10 +35,12 @@ const userSchema = new mongoose.Schema(
         type: String,
         trim: true,
         default: "",
+        maxLength: 200,
       },
       location: {
         type: String,
         trim: true,
+        maxLength: 100,
         default: "",
       },
     },

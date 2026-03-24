@@ -52,9 +52,14 @@ const createComment = async (req, res) => {
       }
     }
 
+    const { authorId: author, ...rest } = await Comment.findById(comment._id)
+      .populate("authorId", "username profile")
+      .lean()
+      .exec();
+
     res.status(201).json({
       message: "Yorum başarıyla oluşturuldu.",
-      comment,
+      comment: { ...rest, author },
     });
   } catch (error) {
     res.status(500).json({
@@ -75,7 +80,7 @@ const getCommentsByPostId = async (req, res) => {
       return res.status(404).json({ message: "Gönderi bulunamadı." });
     }
     const comments = await Comment.find({ postId: postId })
-      .populate("authorId", "username email profile")
+      .populate("authorId", "username profile")
       .sort({ createdAt: -1 })
       .lean()
       .exec();
@@ -108,10 +113,14 @@ const deleteComment = async (req, res) => {
         .json({ message: "Yorum bulunamadı veya yetkiniz yok." });
     }
 
-    // Post'un yorum sayısını azalt
+    // Child comment'ları sil
+    const { deletedCount } = await Comment.deleteMany({ parentCommentId: commentId });
+
+    // Post'un yorum sayısını azalt (parent + child'lar)
+    const totalDeleted = 1 + deletedCount;
     const post = await Post.findById(comment.postId);
     if (post && post.engagement.commentsCount > 0) {
-      post.engagement.commentsCount -= 1;
+      post.engagement.commentsCount = Math.max(0, post.engagement.commentsCount - totalDeleted);
       await post.save();
     }
 

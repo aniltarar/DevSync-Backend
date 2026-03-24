@@ -230,7 +230,7 @@ router.get("/:postId", verifyAccessToken, getPostById);
  *       403:
  *         description: Yetki yok
  */
-router.put("/:postId", verifyAccessToken, updatePost);
+router.put("/:postId", verifyAccessToken, uploadPostImage, handleMulterError, updatePost);
 
 /**
  * @swagger

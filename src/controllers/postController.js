@@ -1,3 +1,5 @@
+const fs = require("fs");
+const path = require("path");
 const Post = require("@/models/post.js");
 const Comment = require("@/models/comment.js");
 const User = require("@/models/user.js");
@@ -25,15 +27,21 @@ const createPost = async (req, res) => {
         }))
       : [];
 
-    const post = await Post.create({
+    const created = await Post.create({
       authorId,
       content,
       tags: tags || [],
       images,
     });
+
+    const { authorId: author, ...rest } = await Post.findById(created._id)
+      .populate("authorId", "username  profile")
+      .lean()
+      .exec();
+
     res.status(201).json({
       message: "Gönderi başarıyla oluşturuldu.",
-      post,
+      post: { ...rest, author },
     });
   } catch (error) {
     res.status(500).json({
@@ -72,7 +80,7 @@ const getAllPosts = async (req, res) => {
     }
 
     const posts = await Post.find(filter)
-      .populate("authorId", "username email profile")
+      .populate("authorId", "username  profile")
       .sort({ [sortField]: sortOrder })
       .skip(skip)
       .limit(limit)
@@ -107,22 +115,28 @@ const getAllPosts = async (req, res) => {
 const getPostById = async (req, res) => {
   try {
     const { postId } = req.params;
-    const post = await Post.findById(postId).populate(
-      "authorId",
-      "username email",
-    );
-    if (!post) {
-      return res.status(404).json({
-        message: "Gönderi bulunamadı.",
-      });
+    const raw = await Post.findById(postId)
+      .populate("authorId", "username  profile")
+      .lean()
+      .exec();
+    if (!raw) {
+      return res.status(404).json({ message: "Gönderi bulunamadı." });
     }
-    // İlgili postun yorumlarını çek
-    const comments = await Comment.find({ postId: post._id }).populate(
-      "authorId",
-      "username email",
-    );
+
+    const { authorId: author, ...rest } = raw;
+
+    const rawComments = await Comment.find({ postId: raw._id })
+      .populate("authorId", "username  profile")
+      .lean()
+      .exec();
+
+    const comments = rawComments.map(({ authorId: commentAuthor, ...comment }) => ({
+      ...comment,
+      author: commentAuthor,
+    }));
+
     res.status(200).json({
-      ...post.toObject(),
+      post: { ...rest, author },
       comments,
     });
   } catch (error) {
@@ -143,9 +157,16 @@ const getPostByUserId = async (req, res) => {
     if (!userExists) {
       return res.status(404).json({ message: "Kullanıcı bulunamadı." });
     }
+
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.max(1, parseInt(req.query.limit) || 10);
+    const skip = (page - 1) * limit;
+
     const posts = await Post.find({ authorId: userId })
-      .populate("authorId", "username email profile")
+      .populate("authorId", "username  profile")
       .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
       .lean()
       .exec();
 
@@ -153,10 +174,18 @@ const getPostByUserId = async (req, res) => {
       ...post,
       author: authorId,
     }));
+
+    const total = await Post.countDocuments({ authorId: userId });
+
     res.status(200).json({
-      count: transformedPosts.length,
       message: "Kullanıcının gönderileri başarıyla getirildi.",
       posts: transformedPosts,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        totalPosts: total,
+        limit,
+      },
     });
   } catch (error) {
     res.status(500).json({
@@ -170,19 +199,48 @@ const getPostByUserId = async (req, res) => {
 const updatePost = async (req, res) => {
   try {
     const { postId } = req.params;
-    const { content, tags } = req.body;
+    const { content, tags, removedImageUrls } = req.body;
     const post = await Post.findById(postId);
     if (!post) {
-      return res.status(404).json({
-        message: "Gönderi bulunamadı.",
-      });
+      return res.status(404).json({ message: "Gönderi bulunamadı." });
     }
+
     if (content) post.content = content;
     if (tags) post.tags = tags;
+
+    // Silinecek fotoğrafları kaldır
+    if (removedImageUrls) {
+      const toRemove = Array.isArray(removedImageUrls)
+        ? removedImageUrls
+        : [removedImageUrls];
+
+      post.images = post.images.filter((img) => !toRemove.includes(img.url));
+
+      for (const url of toRemove) {
+        const filePath = path.join(__dirname, "..", "..", url);
+        fs.unlink(filePath, () => {});
+      }
+    }
+
+    // Yeni fotoğrafları ekle
+    if (req.files && req.files.length > 0) {
+      const newImages = req.files.map((file) => ({
+        url: `/uploads/images/${file.filename}`,
+        originalName: file.originalname,
+      }));
+      post.images.push(...newImages);
+    }
+
     await post.save();
+
+    const { authorId: author, ...rest } = await Post.findById(post._id)
+      .populate("authorId", "username  profile")
+      .lean()
+      .exec();
+
     res.status(200).json({
       message: "Gönderi başarıyla güncellendi.",
-      post,
+      post: { ...rest, author },
     });
   } catch (error) {
     res.status(500).json({
@@ -212,6 +270,7 @@ const deletePost = async (req, res) => {
     });
   }
 };
+
 const likePost = async (req, res) => {
   try {
     const { postId } = req.params;

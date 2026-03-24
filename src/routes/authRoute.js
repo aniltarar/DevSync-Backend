@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { register, login, tokenRefresh, logout, uploadAvatar, updateProfile } = require('@/controllers/authController');
+const { register, login, tokenRefresh, logout, uploadAvatar, updateProfile, getProfile } = require('@/controllers/authController');
 const { verifyAccessToken } = require('@/middlewares/authMiddleware');
 const { uploadAvatar: uploadAvatarMiddleware, handleMulterError } = require('@/config/multerConfig');
 
@@ -315,5 +315,62 @@ router.post('/avatar', verifyAccessToken, uploadAvatarMiddleware, handleMulterEr
  *         description: Sunucu hatası
  */
 router.put('/profile', verifyAccessToken, updateProfile);
+
+/**
+ * @swagger
+ * /auth/profile/{id}:
+ *   get:
+ *     summary: Kullanıcı profili getir
+ *     description: Verilen ID'ye sahip kullanıcının profil bilgilerini döner
+ *     tags:
+ *       - Authentication
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Kullanıcı ID'si
+ *     responses:
+ *       200:
+ *         description: Profil başarıyla getirildi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     username:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     profile:
+ *                       type: object
+ *                     role:
+ *                       type: string
+ *                     socialLinks:
+ *                       type: object
+ *                     skills:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                     titles:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *       401:
+ *         description: Yetkilendirme hatası
+ *       404:
+ *         description: Kullanıcı bulunamadı
+ *       500:
+ *         description: Sunucu hatası
+ */
+router.get('/profile/:id', verifyAccessToken, getProfile);
 
 module.exports = router;

@@ -348,6 +348,22 @@ const updateProfile = async (req, res) => {
   }
 };
 
+
+// Profil Görüntüleme Fonksiyonu || Get Profile Function
+const getProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select(
+      "_id username profile email role socialLinks skills titles"
+    );
+    if (!user) {
+      return res.status(404).json({ message: "Kullanıcı bulunamadı." });
+    }
+    res.status(200).json({ user });
+  } catch (error) {
+    res.status(500).json({ message: "Profil getirilirken hata oluştu.", error: error.message });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -355,4 +371,5 @@ module.exports = {
   logout,
   uploadAvatar,
   updateProfile,
+  getProfile,
 };
