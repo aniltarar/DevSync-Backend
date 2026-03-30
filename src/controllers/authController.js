@@ -279,6 +279,30 @@ const uploadAvatar = async (req, res) => {
   }
 };
 
+const deleteAvatar = async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { $unset: { "profile.avatarUrl": "" } },
+      { new: true },
+    ).select("-password");
+    
+    if (!user) {
+      return res.status(404).json({ message: "Kullanıcı bulunamadı." });
+    }
+
+    res.status(200).json({
+      message: "Profil fotoğrafı başarıyla silindi.",
+      profile: user.profile,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Profil fotoğrafı silinirken hata oluştu.",
+      error: error.message,
+    });
+  }
+};
+
 // Profil Güncelleme Fonksiyonu || Update Profile Function
 const PROFILE_FIELD_MAP = {
   username: "username",
@@ -431,6 +455,7 @@ module.exports = {
   tokenRefresh,
   logout,
   uploadAvatar,
+  deleteAvatar,
   updateProfile,
   getProfile,
   blockUser,

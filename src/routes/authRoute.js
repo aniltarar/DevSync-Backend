@@ -1,8 +1,21 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { register, login, tokenRefresh, logout, uploadAvatar, updateProfile, getProfile, blockUser } = require('@/controllers/authController');
-const { verifyAccessToken } = require('@/middlewares/authMiddleware');
-const { uploadAvatar: uploadAvatarMiddleware, handleMulterError } = require('@/config/multerConfig');
+const {
+  register,
+  login,
+  tokenRefresh,
+  logout,
+  uploadAvatar,
+  updateProfile,
+  getProfile,
+  blockUser,
+  deleteAvatar,
+} = require("@/controllers/authController");
+const { verifyAccessToken } = require("@/middlewares/authMiddleware");
+const {
+  uploadAvatar: uploadAvatarMiddleware,
+  handleMulterError,
+} = require("@/config/multerConfig");
 
 /**
  * @swagger
@@ -65,7 +78,7 @@ const { uploadAvatar: uploadAvatarMiddleware, handleMulterError } = require('@/c
  *       500:
  *         description: Sunucu hatası
  */
-router.post('/register', register);
+router.post("/register", register);
 
 /**
  * @swagger
@@ -116,7 +129,7 @@ router.post('/register', register);
  *       500:
  *         description: Sunucu hatası
  */
-router.post('/login', login);
+router.post("/login", login);
 
 /**
  * @swagger
@@ -157,7 +170,7 @@ router.post('/login', login);
  *       500:
  *         description: Sunucu hatası
  */
-router.post('/token-refresh', tokenRefresh);
+router.post("/token-refresh", tokenRefresh);
 
 /**
  * @swagger
@@ -192,7 +205,7 @@ router.post('/token-refresh', tokenRefresh);
  *       500:
  *         description: Sunucu hatası
  */
-router.post('/logout', logout);
+router.post("/logout", logout);
 
 /**
  * @swagger
@@ -251,7 +264,54 @@ router.post('/logout', logout);
  *       500:
  *         description: Sunucu hatası
  */
-router.post('/avatar', verifyAccessToken, uploadAvatarMiddleware, handleMulterError, uploadAvatar);
+router.post(
+  "/avatar",
+  verifyAccessToken,
+  uploadAvatarMiddleware,
+  handleMulterError,
+  uploadAvatar,
+);
+
+/**
+ * @swagger
+ * /auth/avatar:
+ *   delete:
+ *     summary: Profil fotoğrafını sil
+ *     description: Kullanıcının profil fotoğrafını siler
+ *     tags:
+ *       - Authentication
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Profil fotoğrafı başarıyla silindi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Profil fotoğrafı başarıyla silindi.
+ *                 profile:
+ *                   type: object
+ *                   properties:
+ *                     name:
+ *                       type: string
+ *                     surname:
+ *                       type: string
+ *                     bio:
+ *                       type: string
+ *                     avatarUrl:
+ *                       type: string
+ *                     location:
+ *                       type: string
+ *       401:
+ *         description: Yetkilendirme hatası
+ *       500:
+ *         description: Sunucu hatası
+ */
+router.delete("/avatar", verifyAccessToken, deleteAvatar);
 
 /**
  * @swagger
@@ -314,7 +374,7 @@ router.post('/avatar', verifyAccessToken, uploadAvatarMiddleware, handleMulterEr
  *       500:
  *         description: Sunucu hatası
  */
-router.put('/profile', verifyAccessToken, updateProfile);
+router.put("/profile", verifyAccessToken, updateProfile);
 
 /**
  * @swagger
@@ -371,7 +431,7 @@ router.put('/profile', verifyAccessToken, updateProfile);
  *       500:
  *         description: Sunucu hatası
  */
-router.get('/profile/:id', verifyAccessToken, getProfile);
+router.get("/profile/:id", verifyAccessToken, getProfile);
 
 /**
  * @swagger
@@ -402,6 +462,6 @@ router.get('/profile/:id', verifyAccessToken, getProfile);
  *       500:
  *         description: Sunucu hatası
  */
-router.post('/block/:userId', verifyAccessToken, blockUser);
+router.post("/block/:userId", verifyAccessToken, blockUser);
 
 module.exports = router;

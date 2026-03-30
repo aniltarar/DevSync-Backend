@@ -173,7 +173,7 @@ const viewApplicationsByPID = async (req, res) => {
 
     const applications = await Application.find({ projectId }).populate(
       "userId",
-      "name email",
+      "username profile titles skills socialLinks",
     );
     res.status(200).json({
       message: "Başvurular başarıyla getirildi.",

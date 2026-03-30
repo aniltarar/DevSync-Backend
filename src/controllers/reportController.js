@@ -15,6 +15,95 @@ const modelMap = {
   application: Application,
 };
 
+const getContentPreview = async (reportType, contentId) => {
+  if (!contentId || reportType === "chat" || reportType === "other") return null;
+
+  try {
+    switch (reportType) {
+      case "post": {
+        const post = await Post.findById(contentId)
+          .select("content tags images authorId createdAt")
+          .populate("authorId", "username profile.avatarUrl")
+          .lean();
+        if (!post) return null;
+        return {
+          type: "post",
+          content: post.content?.substring(0, 150),
+          contentTruncated: (post.content?.length || 0) > 150,
+          tags: post.tags,
+          imageCount: post.images?.length || 0,
+          author: post.authorId,
+          createdAt: post.createdAt,
+        };
+      }
+      case "comment": {
+        const comment = await Comment.findById(contentId)
+          .select("content authorId postId createdAt")
+          .populate("authorId", "username profile.avatarUrl")
+          .lean();
+        if (!comment) return null;
+        return {
+          type: "comment",
+          content: comment.content?.substring(0, 150),
+          contentTruncated: (comment.content?.length || 0) > 150,
+          author: comment.authorId,
+          postId: comment.postId,
+          createdAt: comment.createdAt,
+        };
+      }
+      case "project": {
+        const project = await Project.findById(contentId)
+          .select("title description category status projectType createdAt")
+          .lean();
+        if (!project) return null;
+        return {
+          type: "project",
+          title: project.title,
+          description: project.description?.substring(0, 150),
+          descriptionTruncated: (project.description?.length || 0) > 150,
+          category: project.category,
+          status: project.status,
+          projectType: project.projectType,
+          createdAt: project.createdAt,
+        };
+      }
+      case "user": {
+        const user = await User.findById(contentId)
+          .select("username profile.name profile.surname profile.avatarUrl profile.bio")
+          .lean();
+        if (!user) return null;
+        return {
+          type: "user",
+          username: user.username,
+          name: user.profile?.name,
+          surname: user.profile?.surname,
+          avatarUrl: user.profile?.avatarUrl,
+          bio: user.profile?.bio?.substring(0, 100),
+        };
+      }
+      case "application": {
+        const application = await Application.findById(contentId)
+          .select("roleName message status projectId appliedAt")
+          .lean();
+        if (!application) return null;
+        return {
+          type: "application",
+          roleName: application.roleName,
+          message: application.message?.substring(0, 150),
+          messageTruncated: (application.message?.length || 0) > 150,
+          status: application.status,
+          projectId: application.projectId,
+          appliedAt: application.appliedAt,
+        };
+      }
+      default:
+        return null;
+    }
+  } catch {
+    return null;
+  }
+};
+
 // Create Report
 const createReport = async (req, res) => {
   try {
@@ -110,15 +199,22 @@ const getMyReports = async (req, res) => {
 
     const reports = await Report.find(filter)
       .populate("reporterId", "username email")
-      .populate("contentId", "title description")
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
     const totalReports = await Report.countDocuments(filter);
 
+    const reportsWithPreview = await Promise.all(
+      reports.map(async (report) => ({
+        ...report,
+        contentPreview: await getContentPreview(report.reportType, report.contentId),
+      }))
+    );
+
     return res.status(200).json({
-      reports,
+      reports: reportsWithPreview,
       totalReports,
       page,
       limit,
@@ -140,10 +236,9 @@ const getReportById = async (req, res) => {
     if (!reportId || !mongoose.Types.ObjectId.isValid(reportId)) {
       return res.status(400).json({ message: "Geçersiz reportId." });
     }
-    const report = await Report.findById(reportId).populate(
-      "reporterId",
-      "profile.name profile.surname email role",
-    );
+    const report = await Report.findById(reportId)
+      .populate("reporterId", "profile.name profile.surname email role")
+      .lean();
     if (!report) {
       return res.status(404).json({ message: "Rapor bulunamadı." });
     }
@@ -153,7 +248,8 @@ const getReportById = async (req, res) => {
       report.reporterId._id &&
       report.reporterId._id.toString() === userId.toString();
     if (role === "admin" || role === "moderator" || isOwner) {
-      return res.status(200).json({ report });
+      const contentPreview = await getContentPreview(report.reportType, report.contentId);
+      return res.status(200).json({ report: { ...report, contentPreview } });
     } else {
       return res
         .status(403)

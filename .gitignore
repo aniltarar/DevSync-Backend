@@ -8,3 +8,5 @@ build/
 .DS_Store
 socket-test.html
 uploads/
+.vscode/
+app-design.json
