@@ -218,12 +218,7 @@ const logout = async (req, res) => {
         message: "Çıkış yapmak için refresh token gereklidir.",
       });
     }
-    const deletedToken = await Token.deleteOne({ refreshToken });
-    if (deletedToken.deletedCount === 0) {
-      return res.status(403).json({
-        message: "Geçersiz refresh token. Çıkış yaparken bir sorun oluştu.",
-      });
-    }
+    await Token.deleteOne({ refreshToken });
 
     res.clearCookie("refreshToken", {
       httpOnly: true,

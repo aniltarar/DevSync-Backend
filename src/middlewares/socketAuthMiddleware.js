@@ -1,7 +1,10 @@
 const jwt = require("jsonwebtoken");
+const cookie = require("cookie");
 
 const socketAuthMiddleware = (socket, next) => {
+  const cookies = cookie.parse(socket.handshake.headers?.cookie || "");
   const token =
+    cookies.accessToken ||
     socket.handshake.auth?.token ||
     socket.handshake.headers?.authorization?.split(" ")[1];
 
