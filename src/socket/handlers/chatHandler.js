@@ -75,6 +75,21 @@ const chatHandler = (io, socket) => {
 
       // Odadaki herkese yeni mesajı ilet (gönderen dahil)
       io.to(conversationId).emit("newMessage", result.data.data);
+
+      // Katılımcıların kişisel odalarına da gönder (sidebar güncellemesi için)
+      const conversation = await Conversation.findById(conversationId);
+      if (conversation) {
+        conversation.participants.forEach((pId) => {
+          io.to(`user:${pId.toString()}`).emit("conversationUpdated", {
+            conversationId,
+            lastMessage: {
+              content: result.data.data.content,
+              senderId: userId,
+              timestamp: new Date(),
+            },
+          });
+        });
+      }
     } catch (error) {
       socket.emit("chatError", { message: "Mesaj gönderilemedi.", error: error.message });
     }

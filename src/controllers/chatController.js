@@ -1,4 +1,5 @@
 const chatService = require("@/services/chatService");
+const Conversation = require("@/models/conversation");
 const { getIO } = require("@/socket/socketServer");
 
 // ========================
@@ -79,6 +80,41 @@ const deleteConversation = async (req, res) => {
   }
 };
 
+// Arşivlenmiş Sohbetleri Getir
+const getArchivedConversations = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const result = await chatService.getArchivedConversations(userId, req.query);
+
+    res.status(result.status).json(result.data);
+  } catch (error) {
+    res.status(500).json({
+      message: "Arşivlenmiş sohbetler getirilirken hata oluştu.",
+      error: error.message,
+    });
+  }
+};
+
+// Sohbeti Arşivden Çıkar
+const unarchiveConversation = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { conversationId } = req.params;
+    const result = await chatService.unarchiveConversation(userId, conversationId);
+
+    if (result.error) {
+      return res.status(result.status).json({ message: result.error });
+    }
+
+    res.status(result.status).json(result.data);
+  } catch (error) {
+    res.status(500).json({
+      message: "Sohbet arşivden çıkarılırken hata oluştu.",
+      error: error.message,
+    });
+  }
+};
+
 // ========================
 // MESAJ İŞLEMLERİ
 // ========================
@@ -112,6 +148,21 @@ const sendMessage = async (req, res) => {
     try {
       const io = getIO();
       io.to(conversationId).emit("newMessage", result.data.data);
+
+      // Katılımcıların kişisel odalarına da gönder (sidebar güncellemesi için)
+      const conv = await Conversation.findById(conversationId);
+      if (conv) {
+        conv.participants.forEach((pId) => {
+          io.to(`user:${pId.toString()}`).emit("conversationUpdated", {
+            conversationId,
+            lastMessage: {
+              content: result.data.data.content,
+              senderId: userId,
+              timestamp: new Date(),
+            },
+          });
+        });
+      }
     } catch (_) {
       // Socket henüz başlatılmamışsa broadcast atlanır
     }
@@ -161,11 +212,29 @@ const editMessage = async (req, res) => {
     try {
       const io = getIO();
       const editedMsg = result.data.data;
-      io.to(editedMsg.conversationId.toString()).emit("messageEdited", {
+      const conversationId = editedMsg.conversationId.toString();
+      io.to(conversationId).emit("messageEdited", {
         messageId,
         content: editedMsg.content,
         editedAt: editedMsg.editedAt,
       });
+
+      // Sidebar güncellemesi — son mesaj düzenlenmişse yansısın
+      const conv = await Conversation.findById(conversationId);
+      if (conv && conv.lastMessage?.senderId?.toString() === userId.toString()) {
+        conv.lastMessage.content = editedMsg.content;
+        await conv.save();
+        conv.participants.forEach((pId) => {
+          io.to(`user:${pId.toString()}`).emit("conversationUpdated", {
+            conversationId,
+            lastMessage: {
+              content: editedMsg.content,
+              senderId: userId,
+              timestamp: conv.lastMessage.timestamp,
+            },
+          });
+        });
+      }
     } catch (_) {
       // Socket henüz başlatılmamışsa broadcast atlanır
     }
@@ -262,8 +331,10 @@ const getUnreadCount = async (req, res) => {
 module.exports = {
   createConversation,
   getConversations,
+  getArchivedConversations,
   getConversationById,
   deleteConversation,
+  unarchiveConversation,
   sendMessage,
   getMessages,
   editMessage,

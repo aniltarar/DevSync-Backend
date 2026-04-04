@@ -4,8 +4,10 @@ const router = express.Router();
 const {
   createConversation,
   getConversations,
+  getArchivedConversations,
   getConversationById,
   deleteConversation,
+  unarchiveConversation,
   sendMessage,
   getMessages,
   editMessage,
@@ -95,6 +97,8 @@ router.post("/conversations", verifyAccessToken, createConversation);
  */
 router.get("/conversations", verifyAccessToken, getConversations);
 
+router.get("/conversations/archived", verifyAccessToken, getArchivedConversations);
+
 /**
  * @swagger
  * /chat/conversations/{conversationId}:
@@ -148,6 +152,8 @@ router.get("/conversations/:conversationId", verifyAccessToken, getConversationB
  *         description: Sohbet bulunamadı
  */
 router.delete("/conversations/:conversationId", verifyAccessToken, deleteConversation);
+
+router.patch("/conversations/:conversationId/unarchive", verifyAccessToken, unarchiveConversation);
 
 // ========================
 // MESSAGE ROUTE'LARI

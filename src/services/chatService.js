@@ -122,7 +122,7 @@ const createConversation = async (userId, { participantIds, conversationType, pr
 const getConversations = async (userId, { limit = 20, skip = 0 }) => {
   const [conversations, total] = await Promise.all([
     Conversation.find({ participants: userId, isActive: true })
-      .populate("participants", "username profile.name profile.surname profile.avatarUrl onlineStatus")
+      .populate("participants", "username profile.name profile.surname profile.avatarUrl onlineStatus lastSeenAt")
       .populate("lastMessage.senderId", "username profile.name profile.surname")
       .sort({ updatedAt: -1 })
       .limit(parseInt(limit))
@@ -153,7 +153,7 @@ const getConversations = async (userId, { limit = 20, skip = 0 }) => {
 const getConversationById = async (userId, conversationId) => {
   const conversation = await Conversation.findById(conversationId).populate(
     "participants",
-    "username profile.name profile.surname profile.avatarUrl onlineStatus",
+    "username profile.name profile.surname profile.avatarUrl onlineStatus lastSeenAt",
   );
 
   if (!conversation) {
@@ -197,6 +197,51 @@ const deleteConversation = async (userId, conversationId) => {
   return {
     status: 200,
     data: { message: "Sohbet başarıyla arşivlendi.", conversation },
+  };
+};
+
+const getArchivedConversations = async (userId, { limit = 20, skip = 0 }) => {
+  const [conversations, total] = await Promise.all([
+    Conversation.find({ participants: userId, isActive: false })
+      .populate("participants", "username profile.name profile.surname profile.avatarUrl onlineStatus lastSeenAt")
+      .populate("lastMessage.senderId", "username profile.name profile.surname")
+      .sort({ updatedAt: -1 })
+      .limit(parseInt(limit))
+      .skip(parseInt(skip))
+      .lean(),
+    Conversation.countDocuments({ participants: userId, isActive: false }),
+  ]);
+
+  return {
+    status: 200,
+    data: { message: "Arşivlenmiş sohbetler başarıyla getirildi.", conversations, total },
+  };
+};
+
+const unarchiveConversation = async (userId, conversationId) => {
+  const conversation = await Conversation.findById(conversationId);
+
+  if (!conversation) {
+    return { status: 404, error: "Sohbet bulunamadı." };
+  }
+
+  const isParticipant = conversation.participants.some(
+    (p) => p.toString() === userId.toString(),
+  );
+  if (!isParticipant) {
+    return { status: 403, error: "Bu işlemi yapmaya yetkiniz yok." };
+  }
+
+  if (conversation.isActive) {
+    return { status: 400, error: "Bu sohbet zaten aktif." };
+  }
+
+  conversation.isActive = true;
+  await conversation.save();
+
+  return {
+    status: 200,
+    data: { message: "Sohbet arşivden çıkarıldı.", conversation },
   };
 };
 
@@ -460,8 +505,10 @@ const getUnreadCount = async (userId, conversationId) => {
 module.exports = {
   createConversation,
   getConversations,
+  getArchivedConversations,
   getConversationById,
   deleteConversation,
+  unarchiveConversation,
   sendMessage,
   getMessages,
   editMessage,

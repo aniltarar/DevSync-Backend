@@ -51,6 +51,18 @@ const initSocket = (server) => {
     // Kullanıcının kişisel bildirim odasına katıl
     socket.join(`user:${userId}`);
 
+    // Mevcut online kullanıcı listesini yeni bağlanan socket'a gönder
+    const onlineSockets = await io.fetchSockets();
+    const onlineUsers = [];
+    const seen = new Set();
+    for (const s of onlineSockets) {
+      if (s.userId && !seen.has(s.userId)) {
+        seen.add(s.userId);
+        onlineUsers.push({ userId: s.userId, username: s.username || s.userId });
+      }
+    }
+    socket.emit("onlineUsers", onlineUsers);
+
     // Aktif typing olan conversation'ları takip et
     socket.activeTypingRooms = new Set();
 
