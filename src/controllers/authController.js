@@ -30,7 +30,7 @@ const generateTokens = async (user) => {
   await Token.deleteMany({ userId: user._id });
 
   // Yeni token'ı oluştur ve kaydet. || Create and save new token.
-  const newRefreshToken = await Token.create({
+  await Token.create({
     userId: user._id,
     refreshToken: refreshToken,
     date: new Date(),
@@ -281,7 +281,7 @@ const deleteAvatar = async (req, res) => {
       { $unset: { "profile.avatarUrl": "" } },
       { new: true },
     ).select("-password");
-    
+
     if (!user) {
       return res.status(404).json({ message: "Kullanıcı bulunamadı." });
     }
@@ -379,12 +379,10 @@ const updateProfile = async (req, res) => {
         .status(400)
         .json({ message: "Geçersiz veri.", error: error.message });
     }
-    res
-      .status(500)
-      .json({
-        message: "Profil güncellenirken hata oluştu.",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "Profil güncellenirken hata oluştu.",
+      error: error.message,
+    });
   }
 };
 
@@ -394,21 +392,46 @@ const getProfile = async (req, res) => {
     const targetId = req.params.id;
 
     const [currentUser, targetUser] = await Promise.all([
-      User.findById(req.user._id).select("blockedUsers"),
-      User.findById(targetId).select("_id username profile email role socialLinks skills titles blockedUsers"),
+      User.findById(req.user._id).select("blockedUsers following"),
+      User.findById(targetId).select(
+        "_id username profile email role socialLinks skills titles blockedUsers followers following",
+      ),
     ]);
 
     if (!targetUser) {
       return res.status(404).json({ message: "Kullanıcı bulunamadı." });
     }
 
-    const isBlocked = currentUser.blockedUsers.some((id) => id.toString() === targetId);
-    const isBlockedBy = targetUser.blockedUsers.some((id) => id.toString() === req.user._id.toString());
+    const isBlocked = currentUser.blockedUsers.some(
+      (id) => id.toString() === targetId,
+    );
+    const isBlockedBy = targetUser.blockedUsers.some(
+      (id) => id.toString() === req.user._id.toString(),
+    );
+    const isFollowing = currentUser.following.some(
+      (id) => id.toString() === targetId,
+    );
+    const isFollowedBy = targetUser.following.some(
+      (id) => id.toString() === req.user._id.toString(),
+    );
 
-    const { blockedUsers: _, ...user } = targetUser.toObject();
-    res.status(200).json({ user, isBlocked, isBlockedBy });
+    const { blockedUsers: _, followers: __, following: ___, ...user } = targetUser.toObject();
+    res.status(200).json({
+      user,
+      isBlocked,
+      isBlockedBy,
+      isFollowing,
+      isFollowedBy,
+      followersCount: targetUser.followers.length,
+      followingCount: targetUser.following?.length ?? 0,
+    });
   } catch (error) {
-    res.status(500).json({ message: "Profil getirilirken hata oluştu.", error: error.message });
+    res
+      .status(500)
+      .json({
+        message: "Profil getirilirken hata oluştu.",
+        error: error.message,
+      });
   }
 };
 
@@ -430,10 +453,14 @@ const blockUser = async (req, res) => {
     const isBlocked = currentUser.blockedUsers.includes(userId);
 
     if (isBlocked) {
-      await User.findByIdAndUpdate(req.user._id, { $pull: { blockedUsers: userId } });
+      await User.findByIdAndUpdate(req.user._id, {
+        $pull: { blockedUsers: userId },
+      });
       return res.status(200).json({ message: "Kullanıcı engeli kaldırıldı." });
     } else {
-      await User.findByIdAndUpdate(req.user._id, { $addToSet: { blockedUsers: userId } });
+      await User.findByIdAndUpdate(req.user._id, {
+        $addToSet: { blockedUsers: userId },
+      });
       return res.status(200).json({ message: "Kullanıcı engellendi." });
     }
   } catch (error) {
@@ -441,6 +468,150 @@ const blockUser = async (req, res) => {
       message: "Kullanıcı engellenirken hata oluştu.",
       error: error.message,
     });
+  }
+};
+
+// Kullanıcı Takip Et / Takibi Bırak || Follow / Unfollow User
+const followUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const currentUserId = req.user._id;
+
+    if (userId === currentUserId.toString()) {
+      return res.status(400).json({ message: "Kendinizi takip edemezsiniz." });
+    }
+
+    const targetUser = await User.findById(userId);
+    if (!targetUser) {
+      return res.status(404).json({ message: "Kullanıcı bulunamadı." });
+    }
+
+    const currentUser = await User.findById(currentUserId);
+    const isFollowing = currentUser.following.some(
+      (id) => id.toString() === userId,
+    );
+
+    if (isFollowing) {
+      await Promise.all([
+        User.findByIdAndUpdate(currentUserId, { $pull: { following: userId } }),
+        User.findByIdAndUpdate(userId, { $pull: { followers: currentUserId } }),
+      ]);
+      return res
+        .status(200)
+        .json({ message: "Takipten çıkıldı.", isFollowing: false });
+    } else {
+      await Promise.all([
+        User.findByIdAndUpdate(currentUserId, {
+          $addToSet: { following: userId },
+        }),
+        User.findByIdAndUpdate(userId, {
+          $addToSet: { followers: currentUserId },
+        }),
+      ]);
+      return res
+        .status(200)
+        .json({ message: "Takip edildi.", isFollowing: true });
+    }
+  } catch (error) {
+    res
+      .status(500)
+      .json({
+        message: "Takip işlemi sırasında hata oluştu.",
+        error: error.message,
+      });
+  }
+};
+
+// Takip Ettiklerimi Getir || Get Following List
+const getFollowing = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id)
+      .select("following")
+      .populate(
+        "following",
+        "username profile.name profile.surname profile.avatarUrl onlineStatus",
+      );
+
+    res.status(200).json({ following: user.following });
+  } catch (error) {
+    res
+      .status(500)
+      .json({
+        message: "Takip listesi getirilirken hata oluştu.",
+        error: error.message,
+      });
+  }
+};
+
+// Takipçilerimi Getir || Get Followers List
+const getFollowers = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id)
+      .select("followers")
+      .populate(
+        "followers",
+        "username profile.name profile.surname profile.avatarUrl onlineStatus",
+      );
+
+    res.status(200).json({ followers: user.followers });
+  } catch (error) {
+    res
+      .status(500)
+      .json({
+        message: "Takipçi listesi getirilirken hata oluştu.",
+        error: error.message,
+      });
+  }
+};
+
+// Kullanıcı Arama || Search Users
+const searchUsers = async (req, res) => {
+  try {
+    const { q } = req.query;
+
+    if (!q || q.trim().length < 2) {
+      return res
+        .status(400)
+        .json({ message: "Arama terimi en az 2 karakter olmalıdır." });
+    }
+
+    const regex = new RegExp(q.trim(), "i");
+
+    const users = await User.find({
+      _id: { $ne: req.user._id },
+      $or: [
+        { username: regex },
+        { "profile.name": regex },
+        { "profile.surname": regex },
+      ],
+    })
+      .select(
+        "username profile.name profile.surname profile.avatarUrl onlineStatus",
+      )
+      .limit(20);
+
+    // Her kullanıcı için isFollowing bilgisi ekle
+    const currentUser = await User.findById(req.user._id).select(
+      "following blockedUsers",
+    );
+    const result = users.map((u) => ({
+      ...u.toObject(),
+      isFollowing: currentUser.following.some(
+        (id) => id.toString() === u._id.toString(),
+      ),
+      isBlocked: currentUser.blockedUsers.some(
+        (id) => id.toString() === u._id.toString(),
+      ),
+    }));
+
+    res.status(200).json({ users: result });
+  } catch (error) {
+    res
+      .status(500)
+      .json({
+        message: "Kullanıcı aranırken hata oluştu.",
+        error: error.message,
+      });
   }
 };
 
@@ -454,4 +625,8 @@ module.exports = {
   updateProfile,
   getProfile,
   blockUser,
+  followUser,
+  getFollowing,
+  getFollowers,
+  searchUsers,
 };

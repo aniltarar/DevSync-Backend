@@ -10,6 +10,10 @@ const {
   getProfile,
   blockUser,
   deleteAvatar,
+  followUser,
+  getFollowing,
+  getFollowers,
+  searchUsers,
 } = require("@/controllers/authController");
 const { verifyAccessToken } = require("@/middlewares/authMiddleware");
 const {
@@ -463,5 +467,86 @@ router.get("/profile/:id", verifyAccessToken, getProfile);
  *         description: Sunucu hatası
  */
 router.post("/block/:userId", verifyAccessToken, blockUser);
+
+/**
+ * @swagger
+ * /auth/follow/{userId}:
+ *   post:
+ *     summary: Kullanıcı takip et / takibi bırak
+ *     description: Verilen ID'li kullanıcıyı takip eder. Zaten takip ediliyorsa takibi bırakır (toggle).
+ *     tags:
+ *       - Authentication
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Takip edildi veya takipten çıkıldı
+ *       400:
+ *         description: Kendinizi takip edemezsiniz
+ *       404:
+ *         description: Kullanıcı bulunamadı
+ */
+router.post("/follow/:userId", verifyAccessToken, followUser);
+
+/**
+ * @swagger
+ * /auth/following:
+ *   get:
+ *     summary: Takip ettiklerimi getir
+ *     tags:
+ *       - Authentication
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Takip listesi
+ */
+router.get("/following", verifyAccessToken, getFollowing);
+
+/**
+ * @swagger
+ * /auth/followers:
+ *   get:
+ *     summary: Takipçilerimi getir
+ *     tags:
+ *       - Authentication
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Takipçi listesi
+ */
+router.get("/followers", verifyAccessToken, getFollowers);
+
+/**
+ * @swagger
+ * /auth/users/search:
+ *   get:
+ *     summary: Kullanıcı ara
+ *     description: Username, isim veya soyisim ile kullanıcı ara. Min 2 karakter.
+ *     tags:
+ *       - Authentication
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Arama terimi (min 2 karakter)
+ *     responses:
+ *       200:
+ *         description: Kullanıcı listesi (isFollowing ve isBlocked bilgisiyle)
+ *       400:
+ *         description: Arama terimi çok kısa
+ */
+router.get("/users/search", verifyAccessToken, searchUsers);
 
 module.exports = router;

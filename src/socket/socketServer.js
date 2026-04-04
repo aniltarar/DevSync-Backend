@@ -51,6 +51,9 @@ const initSocket = (server) => {
     // Kullanıcının kişisel bildirim odasına katıl
     socket.join(`user:${userId}`);
 
+    // Aktif typing olan conversation'ları takip et
+    socket.activeTypingRooms = new Set();
+
     // Handler'ları kaydet
     chatHandler(io, socket);
     notificationHandler(io, socket);
@@ -60,6 +63,18 @@ const initSocket = (server) => {
     // ========================
     socket.on("disconnect", async () => {
       console.log(`[Socket] Kullanıcı ayrıldı: ${userId} (${socket.id})`);
+
+      // Yazıyor göstergesi temizleme — bağlantı koptuğunda aktif odalara stopTyping gönder
+      if (socket.activeTypingRooms?.size > 0) {
+        socket.activeTypingRooms.forEach((conversationId) => {
+          socket.to(conversationId).emit("userStopTyping", {
+            userId,
+            username: socket.username,
+            conversationId,
+          });
+        });
+        socket.activeTypingRooms.clear();
+      }
 
       const lastSeenAt = new Date();
       await User.findByIdAndUpdate(userId, {

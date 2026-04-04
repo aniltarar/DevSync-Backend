@@ -41,6 +41,7 @@ const chatHandler = (io, socket) => {
   // YAZIYOR GÖSTERGESİ
   // ========================
   socket.on("typing", ({ conversationId }) => {
+    socket.activeTypingRooms?.add(conversationId);
     socket.to(conversationId).emit("userTyping", {
       userId,
       username: socket.username,
@@ -49,6 +50,7 @@ const chatHandler = (io, socket) => {
   });
 
   socket.on("stopTyping", ({ conversationId }) => {
+    socket.activeTypingRooms?.delete(conversationId);
     socket.to(conversationId).emit("userStopTyping", {
       userId,
       username: socket.username,

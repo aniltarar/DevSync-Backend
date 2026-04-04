@@ -120,23 +120,33 @@ const createConversation = async (userId, { participantIds, conversationType, pr
 };
 
 const getConversations = async (userId, { limit = 20, skip = 0 }) => {
-  const conversations = await Conversation.find({
-    participants: userId,
-    isActive: true,
-  })
-    .populate("participants", "username profile.name profile.surname profile.avatarUrl onlineStatus")
-    .sort({ updatedAt: -1 })
-    .limit(parseInt(limit))
-    .skip(parseInt(skip));
+  const [conversations, total] = await Promise.all([
+    Conversation.find({ participants: userId, isActive: true })
+      .populate("participants", "username profile.name profile.surname profile.avatarUrl onlineStatus")
+      .populate("lastMessage.senderId", "username profile.name profile.surname")
+      .sort({ updatedAt: -1 })
+      .limit(parseInt(limit))
+      .skip(parseInt(skip))
+      .lean(),
+    Conversation.countDocuments({ participants: userId, isActive: true }),
+  ]);
 
-  const total = await Conversation.countDocuments({
-    participants: userId,
-    isActive: true,
-  });
+  // Her sohbet için okunmamış mesaj sayısını ekle
+  const conversationsWithUnread = await Promise.all(
+    conversations.map(async (conv) => {
+      const unreadCount = await Message.countDocuments({
+        conversationId: conv._id,
+        isDeleted: false,
+        senderId: { $ne: userId },
+        "readBy.userId": { $ne: userId },
+      });
+      return { ...conv, unreadCount };
+    }),
+  );
 
   return {
     status: 200,
-    data: { message: "Sohbetler başarıyla getirildi.", conversations, total },
+    data: { message: "Sohbetler başarıyla getirildi.", conversations: conversationsWithUnread, total },
   };
 };
 
