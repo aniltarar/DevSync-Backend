@@ -1,5 +1,4 @@
 const Notification = require("@/models/notification");
-const { getIO } = require("@/socket/socketServer");
 
 // ========================
 // BİLDİRİM OLUŞTUR ve EMIT ET
@@ -20,9 +19,14 @@ const createNotification = async ({ recipientId, senderId, type, referenceId, re
 
   // Kullanıcının kişisel odasına gerçek zamanlı bildirim gönder
   try {
-    getIO().to(`user:${recipientId}`).emit("newNotification", populated);
-  } catch (_) {
-    // Socket henüz başlatılmadıysa sessizce geç
+    const { getIO } = require("@/socket/socketServer");
+    const io = getIO();
+    const roomName = `user:${recipientId.toString()}`;
+    const room = io.sockets.adapter.rooms.get(roomName);
+    console.log(`[Notification] Emit "newNotification" → Room: ${roomName} | Sockets in room: ${room ? room.size : 0} | Type: ${type}`);
+    io.to(roomName).emit("newNotification", populated);
+  } catch (err) {
+    console.error("[Notification] Socket emit hatası:", err.message);
   }
 
   return populated;

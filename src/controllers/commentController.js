@@ -34,8 +34,8 @@ const createComment = async (req, res) => {
       recipientId: post.authorId,
       senderId: authorId,
       type: "comment",
-      referenceId: comment._id,
-      referenceModel: "Comment",
+      referenceId: post._id,
+      referenceModel: "Post",
     }).catch(() => {});
 
     // Yanıtsa parent yorum sahibine "reply" bildirimi
@@ -46,8 +46,8 @@ const createComment = async (req, res) => {
           recipientId: parentComment.authorId,
           senderId: authorId,
           type: "reply",
-          referenceId: comment._id,
-          referenceModel: "Comment",
+          referenceId: post._id,
+          referenceModel: "Post",
         }).catch(() => {});
       }
     }
@@ -188,8 +188,8 @@ const likeComment = async (req, res) => {
         recipientId: comment.authorId,
         senderId: userId,
         type: "like_comment",
-        referenceId: comment._id,
-        referenceModel: "Comment",
+        referenceId: comment.postId,
+        referenceModel: "Post",
       }).catch(() => {});
 
       return res.status(200).json({ message: "Yorum beğenildi." });

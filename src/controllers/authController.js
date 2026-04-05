@@ -2,6 +2,7 @@ const User = require("@/models/user");
 const Token = require("@/models/token");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const { createNotification } = require("@/services/notificationService");
 
 // Token Oluşturma Fonksiyonu || Token Generation Function
 
@@ -508,6 +509,13 @@ const followUser = async (req, res) => {
           $addToSet: { followers: currentUserId },
         }),
       ]);
+      createNotification({
+        recipientId: userId,
+        senderId: currentUserId,
+        type: "follow",
+        referenceId: currentUserId,
+        referenceModel: "User",
+      }).catch(() => {});
       return res
         .status(200)
         .json({ message: "Takip edildi.", isFollowing: true });

@@ -5,7 +5,7 @@ const notificationService = require("@/services/notificationService");
 // ========================
 const getNotifications = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user._id;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const unreadOnly = req.query.unreadOnly === "true";
@@ -23,7 +23,7 @@ const getNotifications = async (req, res) => {
 // ========================
 const getUnreadCount = async (req, res) => {
   try {
-    const count = await notificationService.getUnreadCount(req.user.id);
+    const count = await notificationService.getUnreadCount(req.user._id);
     res.status(200).json({ count });
   } catch (error) {
     res.status(500).json({ message: "Okunmamış sayısı alınırken hata oluştu.", error: error.message });
@@ -35,7 +35,7 @@ const getUnreadCount = async (req, res) => {
 // ========================
 const markAsRead = async (req, res) => {
   try {
-    const notification = await notificationService.markAsRead(req.params.id, req.user.id);
+    const notification = await notificationService.markAsRead(req.params.id, req.user._id);
 
     if (!notification) {
       return res.status(404).json({ message: "Bildirim bulunamadı." });
@@ -52,7 +52,7 @@ const markAsRead = async (req, res) => {
 // ========================
 const markAllAsRead = async (req, res) => {
   try {
-    const count = await notificationService.markAllAsRead(req.user.id);
+    const count = await notificationService.markAllAsRead(req.user._id);
     res.status(200).json({ message: "Tüm bildirimler okundu olarak işaretlendi.", updatedCount: count });
   } catch (error) {
     res.status(500).json({ message: "Bildirimler güncellenirken hata oluştu.", error: error.message });
