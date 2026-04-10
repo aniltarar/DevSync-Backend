@@ -176,6 +176,13 @@ const login = async (req, res) => {
         .json({ message: "Parola yanlış. Tekrar deneyiniz." });
     }
 
+    // Kullanıcı banlanmış mı kontrol et || Check if user is banned
+    if (!user.status) {
+      return res
+        .status(403)
+        .json({ message: "Hesabınız banlanmıştır. Giriş yapamazsınız." });
+    }
+
     // Token'ları oluştur || Generate tokens
     const tokens = await generateTokens(user);
 
@@ -214,12 +221,9 @@ const login = async (req, res) => {
 const logout = async (req, res) => {
   try {
     const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
-    if (!refreshToken) {
-      return res.status(400).json({
-        message: "Çıkış yapmak için refresh token gereklidir.",
-      });
+    if (refreshToken) {
+      await Token.deleteOne({ refreshToken });
     }
-    await Token.deleteOne({ refreshToken });
 
     res.clearCookie("refreshToken", {
       httpOnly: true,

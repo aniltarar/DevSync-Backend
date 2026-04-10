@@ -22,6 +22,7 @@ const applicationRoutes = require("@/routes/applicationRoute.js");
 const reportRoutes = require("@/routes/reportRoute.js");
 const chatRoutes = require("@/routes/chatRoute.js");
 const notificationRoutes = require("@/routes/notificationRoute.js");
+const adminRoutes = require("@/routes/adminRoute.js");
 
 const app = express();
 
@@ -50,6 +51,7 @@ app.use("/applications", applicationRoutes);
 app.use("/reports", reportRoutes);
 app.use("/chat", chatRoutes);
 app.use("/notifications", notificationRoutes);
+app.use("/admin", adminRoutes);
 
 //Swagger
 app.use(
