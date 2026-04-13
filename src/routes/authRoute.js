@@ -20,6 +20,7 @@ const {
   uploadAvatar: uploadAvatarMiddleware,
   handleMulterError,
 } = require("@/config/multerConfig");
+const { authLimiter, registerLimiter } = require("@/middlewares/rateLimiter");
 
 /**
  * @swagger
@@ -82,7 +83,7 @@ const {
  *       500:
  *         description: Sunucu hatası
  */
-router.post("/register", register);
+router.post("/register", registerLimiter, register);
 
 /**
  * @swagger
@@ -133,7 +134,7 @@ router.post("/register", register);
  *       500:
  *         description: Sunucu hatası
  */
-router.post("/login", login);
+router.post("/login", authLimiter, login);
 
 /**
  * @swagger
@@ -174,7 +175,7 @@ router.post("/login", login);
  *       500:
  *         description: Sunucu hatası
  */
-router.post("/token-refresh", tokenRefresh);
+router.post("/token-refresh", authLimiter, tokenRefresh);
 
 /**
  * @swagger

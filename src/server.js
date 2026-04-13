@@ -6,7 +6,11 @@ const http = require("http");
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const helmet = require("helmet");
+const morgan = require("morgan");
 const swaggerUi = require("swagger-ui-express");
+const { apiLimiter } = require("@/middlewares/rateLimiter");
+const logger = require("@/config/loggerConfig");
 
 //configs import
 const connectDB = require("@/config/databaseConfig");
@@ -26,6 +30,15 @@ const adminRoutes = require("@/routes/adminRoute.js");
 
 const app = express();
 
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+app.use(
+  morgan("dev", {
+    stream: {
+      write: (msg) => logger.http(msg.trim().replace(/\x1B\[\d+m/g, "")),
+    },
+  }),
+);
+app.use(apiLimiter);
 app.use(
   cors({
     origin: true,
@@ -60,11 +73,17 @@ app.use(
   swaggerUi.setup(swaggerSpec, swaggerUiOptions),
 );
 
+// Global error handler
+app.use((err, req, res, _next) => {
+  logger.error(`${req.method} ${req.url} — ${err.message}`, { stack: err.stack });
+  res.status(err.status || 500).json({ message: err.message || "Sunucu hatası." });
+});
+
 const server = http.createServer(app);
 initSocket(server);
 
 connectDB().then(() => {
   server.listen(process.env.PORT, () => {
-    console.log(`***Server is running on port ${process.env.PORT}***`);
+    logger.info(`Server is running on port ${process.env.PORT}`);
   });
 });

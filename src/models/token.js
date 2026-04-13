@@ -15,4 +15,7 @@ const tokenSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+tokenSchema.index({ userId: 1 });
+tokenSchema.index({ refreshToken: 1 });
+
 module.exports = mongoose.model("Token", tokenSchema);

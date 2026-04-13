@@ -5,6 +5,7 @@ const Comment = require("@/models/comment.js");
 const User = require("@/models/user.js");
 const { createNotification } = require("@/services/notificationService");
 const mongoose = require("mongoose");
+const logger = require("@/config/loggerConfig");
 
 // Create Post
 const createPost = async (req, res) => {
@@ -55,7 +56,7 @@ const createPost = async (req, res) => {
 const getAllPosts = async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
-    const limit = Math.max(1, parseInt(req.query.limit) || 10);
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit) || 10), 100);
     const skip = (page - 1) * limit;
 
     // filtreler
@@ -159,7 +160,7 @@ const getPostByUserId = async (req, res) => {
     }
 
     const page = Math.max(1, parseInt(req.query.page) || 1);
-    const limit = Math.max(1, parseInt(req.query.limit) || 10);
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit) || 10), 100);
     const skip = (page - 1) * limit;
 
     const posts = await Post.find({ authorId: userId })
@@ -203,6 +204,9 @@ const updatePost = async (req, res) => {
     const post = await Post.findById(postId);
     if (!post) {
       return res.status(404).json({ message: "Gönderi bulunamadı." });
+    }
+    if (post.authorId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Bu gönderiyi düzenleme yetkiniz yok." });
     }
 
     if (content) post.content = content;
@@ -254,12 +258,16 @@ const updatePost = async (req, res) => {
 const deletePost = async (req, res) => {
   try {
     const { postId } = req.params;
-    const post = await Post.findByIdAndDelete(postId);
+    const post = await Post.findById(postId);
     if (!post) {
-      return res.status(404).json({
-        message: "Gönderi bulunamadı.",
-      });
+      return res.status(404).json({ message: "Gönderi bulunamadı." });
     }
+    const isOwner = post.authorId.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === "admin";
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ message: "Bu gönderiyi silme yetkiniz yok." });
+    }
+    await post.deleteOne();
     res.status(200).json({
       message: "Gönderi başarıyla silindi.",
     });
@@ -302,7 +310,7 @@ const likePost = async (req, res) => {
         type: "like_post",
         referenceId: post._id,
         referenceModel: "Post",
-      }).catch(() => {});
+      }).catch((err) => logger.warn("like_post bildirimi gönderilemedi.", { error: err.message }));
 
       return res
         .status(200)

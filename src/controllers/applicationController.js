@@ -2,6 +2,7 @@ const Application = require("@/models/application");
 const Project = require("@/models/project");
 const User = require("@/models/user");
 const notificationService = require("@/services/notificationService");
+const logger = require("@/config/loggerConfig");
 
 // Projeye Başvuru Yap
 const applyToProjectSlot = async (req, res) => {
@@ -37,15 +38,16 @@ const applyToProjectSlot = async (req, res) => {
         message: "Bu pozisyon için kota dolmuştur, başvuru yapılamaz.",
       });
     }
-    // Zaten başvuru yapmış mı kontrol et
+    // Aktif (pending/accepted) başvuru var mı kontrol et
     const existingApplication = await Application.findOne({
       projectId,
       slotId,
       userId,
+      status: { $in: ["pending", "accepted"] },
     });
     if (existingApplication) {
       return res.status(400).json({
-        message: "Bu slota zaten başvuru yaptınız.",
+        message: "Bu slota zaten aktif bir başvurunuz var.",
       });
     }
     // Yeni başvuru oluştur
@@ -65,7 +67,7 @@ const applyToProjectSlot = async (req, res) => {
       type: "new_application",
       referenceId: application._id,
       referenceModel: "Application",
-    }).catch(() => {});
+    }).catch((err) => logger.warn("new_application bildirimi gönderilemedi.", { error: err.message }));
 
     res.status(201).json({
       message: "Başvurunuz başarıyla gönderildi.",
@@ -83,13 +85,28 @@ const applyToProjectSlot = async (req, res) => {
 const getMyApplications = async (req, res) => {
   try {
     const userId = req.user._id;
-    const applications = await Application.find({ userId }).populate(
-      "projectId",
-      "title",
-    );
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit) || 10), 100);
+    const skip = (page - 1) * limit;
+
+    const [applications, total] = await Promise.all([
+      Application.find({ userId })
+        .populate("projectId", "title")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Application.countDocuments({ userId }),
+    ]);
+
     res.status(200).json({
       message: "Başvurularınız başarıyla getirildi.",
       applications,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        total,
+        limit,
+      },
     });
   } catch (error) {
     res.status(500).json({
@@ -292,7 +309,7 @@ const acceptApplication = async (req, res) => {
       type: "application_update",
       referenceId: application._id,
       referenceModel: "Application",
-    }).catch(() => {});
+    }).catch((err) => logger.warn("application_update (accept) bildirimi gönderilemedi.", { error: err.message }));
 
     res.status(200).json({
       message: "Başvuru başarıyla onaylandı.",
@@ -355,7 +372,7 @@ const rejectApplication = async (req, res) => {
       type: "application_update",
       referenceId: application._id,
       referenceModel: "Application",
-    }).catch(() => {});
+    }).catch((err) => logger.warn("application_update (reject) bildirimi gönderilemedi.", { error: err.message }));
 
     res.status(200).json({
       message: "Başvuru başarıyla reddedildi.",

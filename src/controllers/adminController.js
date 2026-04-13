@@ -57,7 +57,7 @@ const getDashboardStats = async (req, res) => {
 const getAllUsers = async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
-    const limit = Math.max(1, parseInt(req.query.limit) || 10);
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit) || 10), 100);
     const skip = (page - 1) * limit;
 
     const filter = {};
@@ -221,7 +221,7 @@ const updateUserRole = async (req, res) => {
 const getAllPosts = async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
-    const limit = Math.max(1, parseInt(req.query.limit) || 10);
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit) || 10), 100);
     const skip = (page - 1) * limit;
 
     const filter = {};
@@ -293,7 +293,7 @@ const deletePost = async (req, res) => {
 const getAllProjects = async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
-    const limit = Math.max(1, parseInt(req.query.limit) || 10);
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit) || 10), 100);
     const skip = (page - 1) * limit;
 
     const filter = {};
@@ -374,7 +374,7 @@ const updateProjectStatus = async (req, res) => {
 const getAllComments = async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
-    const limit = Math.max(1, parseInt(req.query.limit) || 10);
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit) || 10), 100);
     const skip = (page - 1) * limit;
 
     const filter = {};

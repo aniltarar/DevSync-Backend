@@ -131,18 +131,28 @@ const getConversations = async (userId, { limit = 20, skip = 0 }) => {
     Conversation.countDocuments({ participants: userId, isActive: true }),
   ]);
 
-  // Her sohbet için okunmamış mesaj sayısını ekle
-  const conversationsWithUnread = await Promise.all(
-    conversations.map(async (conv) => {
-      const unreadCount = await Message.countDocuments({
-        conversationId: conv._id,
+  // Her sohbet için okunmamış mesaj sayısını tek aggregation ile çek (N+1 önleme)
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+  const unreadCounts = await Message.aggregate([
+    {
+      $match: {
+        conversationId: { $in: conversations.map((c) => c._id) },
         isDeleted: false,
-        senderId: { $ne: userId },
-        "readBy.userId": { $ne: userId },
-      });
-      return { ...conv, unreadCount };
-    }),
+        senderId: { $ne: userObjectId },
+        "readBy.userId": { $ne: userObjectId },
+      },
+    },
+    { $group: { _id: "$conversationId", unreadCount: { $sum: 1 } } },
+  ]);
+
+  const unreadMap = Object.fromEntries(
+    unreadCounts.map((r) => [r._id.toString(), r.unreadCount]),
   );
+
+  const conversationsWithUnread = conversations.map((conv) => ({
+    ...conv,
+    unreadCount: unreadMap[conv._id.toString()] || 0,
+  }));
 
   return {
     status: 200,
@@ -335,7 +345,7 @@ const sendMessage = async (userId, conversationId, { content, messageType, fileD
 
 const getMessages = async (userId, conversationId, { page = 1, limit = 50 }) => {
   page = Math.max(1, parseInt(page) || 1);
-  limit = Math.max(1, parseInt(limit) || 50);
+  limit = Math.min(Math.max(1, parseInt(limit) || 50), 100);
   const skip = (page - 1) * limit;
 
   const conversation = await Conversation.findById(conversationId);

@@ -169,16 +169,27 @@ const deleteProject = async (req, res) => {
 // Get My Projects
 const getMyProjects = async (req, res) => {
   try {
-    const projects = await Project.find({ ownerId: req.user._id }).sort({
-      createdAt: -1,
-    });
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit) || 10), 100);
+    const skip = (page - 1) * limit;
 
-    // Eğer proje yoksa boş dizi döndür ve mesaj ver.
+    const [projects, total] = await Promise.all([
+      Project.find({ ownerId: req.user._id })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Project.countDocuments({ ownerId: req.user._id }),
+    ]);
+
     res.status(200).json({
-      total: projects.length,
+      message: total === 0 ? "Henüz projeniz yok." : "Projeler başarıyla getirildi.",
       data: projects,
-      message: projects.length === 0 ? "Henüz projeniz yok." : "Projeler başarıyla getirildi."
-      
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        total,
+        limit,
+      },
     });
   } catch (error) {
     res.status(500).json({

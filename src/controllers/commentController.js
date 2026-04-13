@@ -1,8 +1,8 @@
 const Comment = require("@/models/comment.js");
 const Post = require("@/models/post.js");
 const { createNotification } = require("@/services/notificationService");
-
 const mongoose = require("mongoose");
+const logger = require("@/config/loggerConfig");
 
 // Create Comment
 const createComment = async (req, res) => {
@@ -36,7 +36,7 @@ const createComment = async (req, res) => {
       type: "comment",
       referenceId: post._id,
       referenceModel: "Post",
-    }).catch(() => {});
+    }).catch((err) => logger.warn("comment bildirimi gönderilemedi.", { error: err.message }));
 
     // Yanıtsa parent yorum sahibine "reply" bildirimi
     if (parentCommentId) {
@@ -48,7 +48,7 @@ const createComment = async (req, res) => {
           type: "reply",
           referenceId: post._id,
           referenceModel: "Post",
-        }).catch(() => {});
+        }).catch((err) => logger.warn("reply bildirimi gönderilemedi.", { error: err.message }));
       }
     }
 
@@ -102,11 +102,11 @@ const deleteComment = async (req, res) => {
   try {
     const { commentId } = req.params;
     const authorId = req.user._id;
+    const isAdmin = req.user.role === "admin";
 
-    const comment = await Comment.findOneAndDelete({
-      _id: commentId,
-      authorId: authorId,
-    });
+    const query = isAdmin ? { _id: commentId } : { _id: commentId, authorId };
+
+    const comment = await Comment.findOneAndDelete(query);
     if (!comment) {
       return res
         .status(404)
@@ -190,7 +190,7 @@ const likeComment = async (req, res) => {
         type: "like_comment",
         referenceId: comment.postId,
         referenceModel: "Post",
-      }).catch(() => {});
+      }).catch((err) => logger.warn("like_comment bildirimi gönderilemedi.", { error: err.message }));
 
       return res.status(200).json({ message: "Yorum beğenildi." });
     }

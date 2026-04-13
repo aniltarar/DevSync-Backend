@@ -42,4 +42,8 @@ const applicationSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+applicationSchema.index({ projectId: 1, status: 1 });
+applicationSchema.index({ userId: 1, createdAt: -1 });
+applicationSchema.index({ projectId: 1, userId: 1, slotId: 1 });
+
 module.exports = mongoose.model("Application", applicationSchema);

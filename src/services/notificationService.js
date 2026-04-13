@@ -1,4 +1,5 @@
 const Notification = require("@/models/notification");
+const logger = require("@/config/loggerConfig");
 
 // ========================
 // BİLDİRİM OLUŞTUR ve EMIT ET
@@ -23,10 +24,10 @@ const createNotification = async ({ recipientId, senderId, type, referenceId, re
     const io = getIO();
     const roomName = `user:${recipientId.toString()}`;
     const room = io.sockets.adapter.rooms.get(roomName);
-    console.log(`[Notification] Emit "newNotification" → Room: ${roomName} | Sockets in room: ${room ? room.size : 0} | Type: ${type}`);
+    logger.debug(`[Notification] Emit "newNotification" → Room: ${roomName} | Sockets in room: ${room ? room.size : 0} | Type: ${type}`);
     io.to(roomName).emit("newNotification", populated);
   } catch (err) {
-    console.error("[Notification] Socket emit hatası:", err.message);
+    logger.error("[Notification] Socket emit hatası.", { error: err.message });
   }
 
   return populated;

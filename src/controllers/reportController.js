@@ -189,7 +189,7 @@ const getMyReports = async (req, res) => {
   try {
     const reporterId = req.user._id;
     const page = Math.max(1, parseInt(req.query.page) || 1);
-    const limit = Math.max(1, parseInt(req.query.limit) || 10);
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit) || 10), 100);
     const skip = (page - 1) * limit;
 
     const filter = { reporterId };
@@ -303,7 +303,7 @@ const getAllReports = async (req, res) => {
     }
 
     const page = Math.max(1, parseInt(req.query.page) || 1);
-    const limit = Math.max(1, parseInt(req.query.limit) || 10);
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit) || 10), 100);
     const skip = (page - 1) * limit;
 
     // Dinamik filtre oluştur

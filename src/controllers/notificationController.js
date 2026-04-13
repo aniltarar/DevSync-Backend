@@ -6,8 +6,8 @@ const notificationService = require("@/services/notificationService");
 const getNotifications = async (req, res) => {
   try {
     const userId = req.user._id;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit) || 20), 100);
     const unreadOnly = req.query.unreadOnly === "true";
 
     const result = await notificationService.getNotifications(userId, { page, limit, unreadOnly });

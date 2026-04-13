@@ -49,4 +49,7 @@ const notificationSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+// recipientId zaten field-level index var; compound index okunmamış filtreleme için
+notificationSchema.index({ recipientId: 1, isRead: 1, createdAt: -1 });
+
 module.exports = mongoose.model("Notification", notificationSchema);

@@ -6,7 +6,6 @@ const messageSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Conversation",
       required: true,
-      index: true,
     },
     senderId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -62,5 +61,7 @@ const messageSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+messageSchema.index({ conversationId: 1, isDeleted: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Message", messageSchema);
