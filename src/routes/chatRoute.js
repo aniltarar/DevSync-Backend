@@ -3,6 +3,10 @@ const router = express.Router();
 
 const {
   createConversation,
+  addGroupMember,
+  removeGroupMember,
+  syncProjectConversations,
+  getOrCreateProjectConversation,
   getConversations,
   getArchivedConversations,
   getConversationById,
@@ -98,6 +102,10 @@ router.post("/conversations", verifyAccessToken, createConversation);
 router.get("/conversations", verifyAccessToken, getConversations);
 
 router.get("/conversations/archived", verifyAccessToken, getArchivedConversations);
+router.post("/conversations/sync-projects", verifyAccessToken, syncProjectConversations);
+router.post("/conversations/project/:projectId", verifyAccessToken, getOrCreateProjectConversation);
+router.post("/conversations/:conversationId/members", verifyAccessToken, addGroupMember);
+router.delete("/conversations/:conversationId/members/:targetUserId", verifyAccessToken, removeGroupMember);
 
 /**
  * @swagger

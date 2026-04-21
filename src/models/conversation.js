@@ -33,6 +33,11 @@ const conversationSchema = new mongoose.Schema(
       },
       timestamp: Date,
     },
+    adminId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
     isActive: {
       type: Boolean,
       default: true,

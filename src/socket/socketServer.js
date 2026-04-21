@@ -20,6 +20,8 @@ const initSocket = (server) => {
       origin: true,
       credentials: true,
     },
+    pingInterval: 25000, // 25s'de bir ping gönder
+    pingTimeout: 20000,  // 20s cevap gelmezse bağlantıyı kes
   });
 
   // ========================

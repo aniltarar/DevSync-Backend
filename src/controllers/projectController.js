@@ -67,10 +67,9 @@ const getProjectById = async (req, res) => {
   try {
     const { projectId } = req.params;
 
-    const project = await Project.findById(projectId).populate(
-      "ownerId",
-      "username  profile",
-    );
+    const project = await Project.findById(projectId)
+      .populate("ownerId", "username profile")
+      .populate("slots.filledBy", "username profile");
 
     if (!project) {
       return res.status(404).json({

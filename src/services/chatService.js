@@ -111,6 +111,7 @@ const createConversation = async (userId, { participantIds, conversationType, pr
     conversationType: conversationType || "direct",
     projectId: conversationType === "project" ? projectId : null,
     title: conversationType !== "direct" ? title : null,
+    adminId: conversationType === "group" ? userId : null,
   });
 
   return {
@@ -124,6 +125,7 @@ const getConversations = async (userId, { limit = 20, skip = 0 }) => {
     Conversation.find({ participants: userId, isActive: true })
       .populate("participants", "username profile.name profile.surname profile.avatarUrl onlineStatus lastSeenAt")
       .populate("lastMessage.senderId", "username profile.name profile.surname")
+      .populate("projectId", "title")
       .sort({ updatedAt: -1 })
       .limit(parseInt(limit))
       .skip(parseInt(skip))
@@ -161,10 +163,9 @@ const getConversations = async (userId, { limit = 20, skip = 0 }) => {
 };
 
 const getConversationById = async (userId, conversationId) => {
-  const conversation = await Conversation.findById(conversationId).populate(
-    "participants",
-    "username profile.name profile.surname profile.avatarUrl onlineStatus lastSeenAt",
-  );
+  const conversation = await Conversation.findById(conversationId)
+    .populate("participants", "username profile.name profile.surname profile.avatarUrl onlineStatus lastSeenAt")
+    .populate("projectId", "title");
 
   if (!conversation) {
     return { status: 404, error: "Sohbet bulunamadı." };
@@ -512,8 +513,158 @@ const getUnreadCount = async (userId, conversationId) => {
   };
 };
 
+const addGroupMember = async (userId, conversationId, targetUserId) => {
+  if (!mongoose.Types.ObjectId.isValid(targetUserId)) {
+    return { status: 400, error: "Geçersiz kullanıcı ID'si." };
+  }
+
+  const conversation = await Conversation.findById(conversationId);
+  if (!conversation) return { status: 404, error: "Sohbet bulunamadı." };
+  if (conversation.conversationType !== "group") return { status: 400, error: "Bu işlem sadece grup sohbetleri için geçerlidir." };
+  if (!conversation.isActive) return { status: 400, error: "Arşivlenmiş gruba üye eklenemez." };
+
+  if (conversation.adminId?.toString() !== userId.toString()) {
+    return { status: 403, error: "Üye ekleme yetkisi sadece grup liderindedir." };
+  }
+
+  if (conversation.participants.some((p) => p.toString() === targetUserId.toString())) {
+    return { status: 400, error: "Bu kullanıcı zaten grupta." };
+  }
+
+  const targetUser = await User.findById(targetUserId);
+  if (!targetUser) return { status: 404, error: "Kullanıcı bulunamadı." };
+
+  conversation.participants.push(targetUserId);
+  await conversation.save();
+  await conversation.populate("participants", "username profile.name profile.surname profile.avatarUrl onlineStatus lastSeenAt");
+
+  return { status: 200, data: { message: "Üye eklendi.", conversation } };
+};
+
+const removeGroupMember = async (userId, conversationId, targetUserId) => {
+  const conversation = await Conversation.findById(conversationId);
+  if (!conversation) return { status: 404, error: "Sohbet bulunamadı." };
+  if (conversation.conversationType !== "group") return { status: 400, error: "Bu işlem sadece grup sohbetleri için geçerlidir." };
+
+  const isSelf = targetUserId.toString() === userId.toString();
+  const isAdmin = conversation.adminId?.toString() === userId.toString();
+
+  if (!conversation.participants.some((p) => p.toString() === userId.toString())) {
+    return { status: 403, error: "Bu sohbetin üyesi değilsiniz." };
+  }
+  if (!conversation.participants.some((p) => p.toString() === targetUserId.toString())) {
+    return { status: 400, error: "Bu kullanıcı grupta değil." };
+  }
+  if (!isSelf && !isAdmin) {
+    return { status: 403, error: "Üye çıkarma yetkisine sahip değilsiniz." };
+  }
+
+  conversation.participants = conversation.participants.filter((p) => p.toString() !== targetUserId.toString());
+
+  // Admin ayrılırsa bir sonraki üyeyi lider yap
+  if (isSelf && isAdmin && conversation.participants.length > 0) {
+    conversation.adminId = conversation.participants[0];
+  }
+
+  await conversation.save();
+
+  return {
+    status: 200,
+    data: {
+      message: isSelf ? "Gruptan ayrıldınız." : "Üye gruptan çıkarıldı.",
+      conversationId,
+      targetUserId,
+      newAdminId: isSelf && isAdmin && conversation.participants.length > 0 ? conversation.adminId : undefined,
+    },
+  };
+};
+
+const syncProjectConversations = async (userId) => {
+  const projects = await Project.find({
+    $or: [{ ownerId: userId }, { "slots.filledBy": userId }],
+    status: "active",
+  });
+
+  await Promise.all(
+    projects.map(async (project) => {
+      const filledByIds = project.slots.flatMap((s) => s.filledBy.map((id) => id.toString()));
+      const allMemberIds = [...new Set([project.ownerId.toString(), ...filledByIds])];
+
+      const existing = await Conversation.findOne({
+        conversationType: "project",
+        projectId: project._id,
+        isActive: true,
+      });
+
+      if (existing) {
+        const missingMembers = allMemberIds.filter(
+          (id) => !existing.participants.some((p) => p.toString() === id),
+        );
+        if (missingMembers.length > 0) {
+          existing.participants.push(...missingMembers);
+          await existing.save();
+        }
+      } else {
+        await Conversation.create({
+          participants: allMemberIds,
+          conversationType: "project",
+          projectId: project._id,
+          title: project.title,
+        });
+      }
+    }),
+  );
+
+  return { status: 200, data: { message: "Proje sohbetleri senkronize edildi." } };
+};
+
+const getOrCreateProjectConversation = async (userId, projectId) => {
+  if (!mongoose.Types.ObjectId.isValid(projectId)) {
+    return { status: 400, error: "Geçersiz proje ID'si." };
+  }
+
+  const project = await Project.findById(projectId);
+  if (!project) {
+    return { status: 404, error: "Proje bulunamadı." };
+  }
+
+  const filledByIds = project.slots.flatMap((s) => s.filledBy.map((id) => id.toString()));
+  const allMemberIds = [...new Set([project.ownerId.toString(), ...filledByIds])];
+
+  if (!allMemberIds.includes(userId.toString())) {
+    return { status: 403, error: "Bu projenin sohbetine erişim yetkiniz yok." };
+  }
+
+  const existing = await Conversation.findOne({
+    conversationType: "project",
+    projectId,
+    isActive: true,
+  }).populate("projectId", "title");
+
+  if (existing) {
+    if (!existing.participants.some((p) => p.toString() === userId.toString())) {
+      existing.participants.push(userId);
+      await existing.save();
+    }
+    return { status: 200, data: { message: "Proje sohbeti getirildi.", conversation: existing } };
+  }
+
+  const conversation = await Conversation.create({
+    participants: allMemberIds,
+    conversationType: "project",
+    projectId,
+    title: project.title,
+  });
+
+  return { status: 201, data: { message: "Proje sohbeti oluşturuldu.", conversation } };
+};
+
 module.exports = {
   createConversation,
+  addGroupMember,
+  removeGroupMember,
+  syncProjectConversations,
+  getOrCreateProjectConversation,
   getConversations,
   getArchivedConversations,
   getConversationById,

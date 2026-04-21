@@ -308,6 +308,78 @@ const markAsRead = async (req, res) => {
   }
 };
 
+// Gruba Üye Ekle
+const addGroupMember = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { conversationId } = req.params;
+    const { userId: targetUserId } = req.body;
+    const result = await chatService.addGroupMember(userId, conversationId, targetUserId);
+
+    if (result.error) return res.status(result.status).json({ message: result.error });
+
+    try {
+      const io = getIO();
+      io.to(conversationId).emit("groupMemberAdded", { conversationId, conversation: result.data.conversation });
+    } catch (_) {}
+
+    res.status(result.status).json(result.data);
+  } catch (error) {
+    res.status(500).json({ message: "Üye eklenirken hata oluştu.", error: error.message });
+  }
+};
+
+// Gruptan Üye Çıkar / Ayrıl
+const removeGroupMember = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { conversationId, targetUserId } = req.params;
+    const result = await chatService.removeGroupMember(userId, conversationId, targetUserId);
+
+    if (result.error) return res.status(result.status).json({ message: result.error });
+
+    try {
+      const io = getIO();
+      io.to(conversationId).emit("groupMemberRemoved", result.data);
+    } catch (_) {}
+
+    res.status(result.status).json(result.data);
+  } catch (error) {
+    res.status(500).json({ message: "Üye çıkarılırken hata oluştu.", error: error.message });
+  }
+};
+
+// Aktif Projelerin Sohbetlerini Senkronize Et
+const syncProjectConversations = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const result = await chatService.syncProjectConversations(userId);
+    res.status(result.status).json(result.data);
+  } catch (error) {
+    res.status(500).json({ message: "Senkronizasyon sırasında hata oluştu.", error: error.message });
+  }
+};
+
+// Proje Sohbetini Getir veya Oluştur
+const getOrCreateProjectConversation = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { projectId } = req.params;
+    const result = await chatService.getOrCreateProjectConversation(userId, projectId);
+
+    if (result.error) {
+      return res.status(result.status).json({ message: result.error });
+    }
+
+    res.status(result.status).json(result.data);
+  } catch (error) {
+    res.status(500).json({
+      message: "Proje sohbeti oluşturulurken hata oluştu.",
+      error: error.message,
+    });
+  }
+};
+
 // Okunmamış Mesaj Sayısını Getir
 const getUnreadCount = async (req, res) => {
   try {
@@ -330,6 +402,10 @@ const getUnreadCount = async (req, res) => {
 
 module.exports = {
   createConversation,
+  addGroupMember,
+  removeGroupMember,
+  syncProjectConversations,
+  getOrCreateProjectConversation,
   getConversations,
   getArchivedConversations,
   getConversationById,
