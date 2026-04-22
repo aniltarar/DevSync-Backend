@@ -14,6 +14,8 @@ const {
   getFollowing,
   getFollowers,
   searchUsers,
+  verifyEmail,
+  resendVerification,
 } = require("@/controllers/authController");
 const { verifyAccessToken } = require("@/middlewares/authMiddleware");
 const {
@@ -84,6 +86,8 @@ const { authLimiter, registerLimiter } = require("@/middlewares/rateLimiter");
  *         description: Sunucu hatası
  */
 router.post("/register", registerLimiter, register);
+router.get("/verify-email/:token", verifyEmail);
+router.post("/resend-verification", resendVerification);
 
 /**
  * @swagger

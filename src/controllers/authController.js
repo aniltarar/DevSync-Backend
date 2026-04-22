@@ -2,7 +2,9 @@ const User = require("@/models/user");
 const Token = require("@/models/token");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const { createNotification } = require("@/services/notificationService");
+const { sendVerificationEmail } = require("@/services/emailService");
 const logger = require("@/config/loggerConfig");
 
 // Token Oluşturma Fonksiyonu || Token Generation Function
@@ -63,6 +65,7 @@ const register = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
     // Yeni kullanıcı oluştur || Create new user
+    const verificationToken = crypto.randomBytes(32).toString("hex");
     const user = await User.create({
       username,
       profile: {
@@ -71,34 +74,15 @@ const register = async (req, res) => {
       },
       email,
       password: hashedPassword,
+      emailVerificationToken: verificationToken,
+      emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
 
-    // Token'ları oluştur || Generate tokens
-    const tokens = await generateTokens(user);
+    await sendVerificationEmail(email, verificationToken);
 
-    const userWithoutPassword = {
-      _id: user._id,
-      username: user.username,
-      profile: user.profile,
-      email: user.email,
-      role: user.role,
-      socialLinks: user.socialLinks,
-    };
-
-    res.cookie("refreshToken", tokens.refreshToken, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+    res.status(201).json({
+      message: "Kayıt başarılı! Hesabınızı etkinleştirmek için e-postanızı kontrol edin.",
     });
-
-    res.cookie("accessToken", tokens.accessToken, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      maxAge: 15 * 60 * 1000,
-    });
-    res.status(201).json(userWithoutPassword);
   } catch (error) {
     res.status(500).json({ message: "Kayıt işlemi başarısız.", error });
   }
@@ -175,6 +159,15 @@ const login = async (req, res) => {
       return res
         .status(401)
         .json({ message: "Parola yanlış. Tekrar deneyiniz." });
+    }
+
+    // E-posta doğrulanmış mı kontrol et
+    if (!user.isEmailVerified) {
+      return res.status(403).json({
+        message: "E-posta adresiniz doğrulanmamış. Lütfen e-postanızı kontrol edin.",
+        needsVerification: true,
+        email: user.email,
+      });
     }
 
     // Kullanıcı banlanmış mı kontrol et || Check if user is banned
@@ -628,11 +621,62 @@ const searchUsers = async (req, res) => {
   }
 };
 
+const verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const user = await User.findOne({
+      emailVerificationToken: token,
+      emailVerificationExpires: { $gt: new Date() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: "Geçersiz veya süresi dolmuş doğrulama linki." });
+    }
+
+    user.isEmailVerified = true;
+    user.emailVerificationToken = null;
+    user.emailVerificationExpires = null;
+    await user.save();
+
+    res.status(200).json({ message: "E-posta adresiniz başarıyla doğrulandı. Giriş yapabilirsiniz." });
+  } catch (error) {
+    res.status(500).json({ message: "Doğrulama işlemi başarısız.", error: error.message });
+  }
+};
+
+const resendVerification = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: "E-posta adresi zorunludur." });
+    }
+
+    const user = await User.findOne({ email });
+
+    // Kullanıcı bulunamazsa da aynı mesajı döndür (güvenlik)
+    if (!user || user.isEmailVerified) {
+      return res.status(200).json({ message: "Eğer hesap mevcutsa doğrulama e-postası gönderildi." });
+    }
+
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    user.emailVerificationToken = verificationToken;
+    user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await user.save();
+
+    await sendVerificationEmail(email, verificationToken);
+    res.status(200).json({ message: "Doğrulama e-postası tekrar gönderildi." });
+  } catch (error) {
+    res.status(500).json({ message: "E-posta gönderilemedi.", error: error.message });
+  }
+};
+
 module.exports = {
   register,
   login,
   tokenRefresh,
   logout,
+  verifyEmail,
+  resendVerification,
   uploadAvatar,
   deleteAvatar,
   updateProfile,
