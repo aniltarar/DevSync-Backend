@@ -6,6 +6,7 @@ const apiLimiter = rateLimit({
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
   message: { message: "Çok fazla istek gönderildi. Lütfen bir dakika sonra tekrar deneyin." },
 });
 
@@ -15,6 +16,7 @@ const authLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
   message: { message: "Çok fazla giriş denemesi. Lütfen 15 dakika sonra tekrar deneyin." },
 });
 
@@ -24,6 +26,7 @@ const registerLimiter = rateLimit({
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
   message: { message: "Çok fazla kayıt denemesi. Lütfen 1 saat sonra tekrar deneyin." },
 });
 

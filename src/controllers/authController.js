@@ -7,6 +7,14 @@ const { createNotification } = require("@/services/notificationService");
 const { sendVerificationEmail } = require("@/services/emailService");
 const logger = require("@/config/loggerConfig");
 
+const isProduction = process.env.NODE_ENV === "production";
+const cookieOptions = (maxAge) => ({
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: isProduction ? "none" : "lax",
+  maxAge,
+});
+
 // Token Oluşturma Fonksiyonu || Token Generation Function
 
 const generateTokens = async (user) => {
@@ -115,18 +123,8 @@ const tokenRefresh = async (req, res) => {
     // Yeni tokenleri oluştur || Generate new tokens
     const tokens = await generateTokens(user);
 
-    res.cookie("refreshToken", tokens.refreshToken, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-    res.cookie("accessToken", tokens.accessToken, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      maxAge: 15 * 60 * 1000,
-    });
+    res.cookie("refreshToken", tokens.refreshToken, cookieOptions(7 * 24 * 60 * 60 * 1000));
+    res.cookie("accessToken", tokens.accessToken, cookieOptions(15 * 60 * 1000));
 
     return res.status(200).json(tokens);
   } catch (error) {
@@ -190,18 +188,8 @@ const login = async (req, res) => {
       skills: user.skills,
       titles: user.titles,
     };
-    res.cookie("refreshToken", tokens.refreshToken, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-    res.cookie("accessToken", tokens.accessToken, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      maxAge: 15 * 60 * 1000,
-    });
+    res.cookie("refreshToken", tokens.refreshToken, cookieOptions(7 * 24 * 60 * 60 * 1000));
+    res.cookie("accessToken", tokens.accessToken, cookieOptions(15 * 60 * 1000));
     res.status(200).json({
       message: "Başarıyla giriş yapıldı.",
       user: userWithoutPassword,
@@ -219,16 +207,8 @@ const logout = async (req, res) => {
       await Token.deleteOne({ refreshToken });
     }
 
-    res.clearCookie("refreshToken", {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-    });
-    res.clearCookie("accessToken", {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-    });
+    res.clearCookie("refreshToken", cookieOptions(0));
+    res.clearCookie("accessToken", cookieOptions(0));
 
     res.status(200).json({
       message: "Başarıyla çıkış yapıldı.",

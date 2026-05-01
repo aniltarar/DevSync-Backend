@@ -29,6 +29,7 @@ const notificationRoutes = require("@/routes/notificationRoute.js");
 const adminRoutes = require("@/routes/adminRoute.js");
 
 const app = express();
+app.set("trust proxy", 1);
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(
@@ -41,7 +42,7 @@ app.use(
 app.use(apiLimiter);
 app.use(
   cors({
-    origin: true,
+    origin: process.env.FRONTEND_URL || true,
     credentials: true,
   }),
 );
