@@ -1,13 +1,7 @@
-const nodemailer = require("nodemailer");
+const { BrevoClient } = require("@getbrevo/brevo");
 
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
+const brevoClient = new BrevoClient({
+  apiKey: process.env.BREVO_API_KEY,
 });
 
 const buildEmailLayout = (content) => `
@@ -116,11 +110,11 @@ const sendVerificationEmail = async (email, token) => {
     </p>
   `;
 
-  await transporter.sendMail({
-    from: `"DevSync" <${process.env.EMAIL_USER}>`,
-    to: email,
+  await brevoClient.transactionalEmails.sendTransacEmail({
+    sender: { name: "DevSync", email: process.env.BREVO_SENDER_EMAIL },
+    to: [{ email }],
     subject: "DevSync — E-posta Adresinizi Doğrulayın",
-    html: buildEmailLayout(content),
+    htmlContent: buildEmailLayout(content),
   });
 };
 
