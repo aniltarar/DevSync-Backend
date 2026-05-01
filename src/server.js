@@ -39,13 +39,13 @@ app.use(
     },
   }),
 );
-app.use(apiLimiter);
 app.use(
   cors({
     origin: process.env.FRONTEND_URL || true,
     credentials: true,
   }),
 );
+app.use(apiLimiter);
 app.use(express.json());
 app.use(cookieParser());
 

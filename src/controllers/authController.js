@@ -86,11 +86,13 @@ const register = async (req, res) => {
       emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
 
-    await sendVerificationEmail(email, verificationToken);
-
     res.status(201).json({
       message: "Kayıt başarılı! Hesabınızı etkinleştirmek için e-postanızı kontrol edin.",
     });
+
+    sendVerificationEmail(email, verificationToken).catch((err) =>
+      logger.error(`Email gönderilemedi: ${err.message}`)
+    );
   } catch (error) {
     res.status(500).json({ message: "Kayıt işlemi başarısız.", error });
   }
