@@ -20,7 +20,7 @@ const {
   getUnreadCount,
 } = require("@/controllers/chatController");
 const { verifyAccessToken } = require("@/middlewares/authMiddleware");
-const { uploadChatFile, handleMulterError } = require("@/config/multerConfig");
+const { uploadChatFile, normalizeFileUrl, handleMulterError } = require("@/config/multerConfig");
 
 /**
  * @swagger
@@ -264,7 +264,7 @@ router.patch("/conversations/:conversationId/unarchive", verifyAccessToken, unar
  *       404:
  *         description: Sohbet bulunamadı
  */
-router.post("/conversations/:conversationId/messages", verifyAccessToken, uploadChatFile, handleMulterError, sendMessage);
+router.post("/conversations/:conversationId/messages", verifyAccessToken, uploadChatFile, handleMulterError, normalizeFileUrl, sendMessage);
 
 /**
  * @swagger

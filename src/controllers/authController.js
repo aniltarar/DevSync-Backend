@@ -248,7 +248,7 @@ const uploadAvatar = async (req, res) => {
       return res.status(400).json({ message: "Dosya yüklenmedi." });
     }
 
-    const avatarUrl = `/uploads/images/${req.file.filename}`;
+    const avatarUrl = req.file.url;
 
     const user = await User.findByIdAndUpdate(
       req.user._id,

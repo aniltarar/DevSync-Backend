@@ -23,7 +23,7 @@ const createPost = async (req, res) => {
 
     const images = req.files
       ? req.files.map((file) => ({
-          url: `/uploads/images/${file.filename}`,
+          url: file.url,
           originalName: file.originalname,
         }))
       : [];
@@ -229,7 +229,7 @@ const updatePost = async (req, res) => {
     // Yeni fotoğrafları ekle
     if (req.files && req.files.length > 0) {
       const newImages = req.files.map((file) => ({
-        url: `/uploads/images/${file.filename}`,
+        url: file.url,
         originalName: file.originalname,
       }));
       post.images.push(...newImages);

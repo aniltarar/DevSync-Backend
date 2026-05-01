@@ -20,6 +20,7 @@ const {
 const { verifyAccessToken } = require("@/middlewares/authMiddleware");
 const {
   uploadAvatar: uploadAvatarMiddleware,
+  normalizeFileUrl,
   handleMulterError,
 } = require("@/config/multerConfig");
 const { authLimiter, registerLimiter } = require("@/middlewares/rateLimiter");
@@ -278,6 +279,7 @@ router.post(
   verifyAccessToken,
   uploadAvatarMiddleware,
   handleMulterError,
+  normalizeFileUrl,
   uploadAvatar,
 );
 

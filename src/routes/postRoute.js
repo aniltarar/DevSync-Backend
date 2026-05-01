@@ -11,7 +11,7 @@ const {
   getPostByUserId,
 } = require("@/controllers/postController");
 const { verifyAccessToken } = require("@/middlewares/authMiddleware");
-const { uploadPostImage, handleMulterError } = require("@/config/multerConfig");
+const { uploadPostImage, normalizeFileUrl, handleMulterError } = require("@/config/multerConfig");
 
 /**
  * @swagger
@@ -132,7 +132,7 @@ router.get("/", verifyAccessToken, getAllPosts);
  *       500:
  *         description: Sunucu hatası
  */
-router.post("/", verifyAccessToken, uploadPostImage, handleMulterError, createPost);
+router.post("/", verifyAccessToken, uploadPostImage, handleMulterError, normalizeFileUrl, createPost);
 
 /**
  * @swagger
@@ -230,7 +230,7 @@ router.get("/:postId", verifyAccessToken, getPostById);
  *       403:
  *         description: Yetki yok
  */
-router.put("/:postId", verifyAccessToken, uploadPostImage, handleMulterError, updatePost);
+router.put("/:postId", verifyAccessToken, uploadPostImage, handleMulterError, normalizeFileUrl, updatePost);
 
 /**
  * @swagger

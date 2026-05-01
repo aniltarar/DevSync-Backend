@@ -132,7 +132,7 @@ const sendMessage = async (req, res) => {
       messageData.messageType = isImage ? "image" : "file";
       messageData.fileData = {
         fileName: req.file.originalname,
-        fileUrl: `/uploads/${isImage ? "images" : "files"}/${req.file.filename}`,
+        fileUrl: req.file.url,
         fileType: req.file.mimetype,
         fileSize: req.file.size,
       };
