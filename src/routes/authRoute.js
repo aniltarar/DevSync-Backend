@@ -16,6 +16,9 @@ const {
   searchUsers,
   verifyEmail,
   resendVerification,
+  forgotPassword,
+  resetPassword,
+  changePassword,
 } = require("@/controllers/authController");
 const { verifyAccessToken } = require("@/middlewares/authMiddleware");
 const {
@@ -89,6 +92,92 @@ const { authLimiter, registerLimiter } = require("@/middlewares/rateLimiter");
 router.post("/register", registerLimiter, register);
 router.get("/verify-email/:token", verifyEmail);
 router.post("/resend-verification", resendVerification);
+
+/**
+ * @swagger
+ * /auth/forgot-password:
+ *   post:
+ *     summary: Şifre sıfırlama e-postası gönder
+ *     description: Kayıtlı e-posta adresine şifre sıfırlama linki gönderir. Güvenlik gereği kullanıcı bulunsun ya da bulunmasın aynı mesaj döner.
+ *     tags:
+ *       - Authentication
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: john@example.com
+ *     responses:
+ *       200:
+ *         description: Şifre sıfırlama e-postası gönderildi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Eğer hesap mevcutsa şifre sıfırlama e-postası gönderildi.
+ *       400:
+ *         description: E-posta adresi zorunludur
+ *       500:
+ *         description: Sunucu hatası
+ */
+router.post("/forgot-password", authLimiter, forgotPassword);
+
+/**
+ * @swagger
+ * /auth/reset-password/{token}:
+ *   post:
+ *     summary: Şifre sıfırla
+ *     description: E-posta ile gönderilen token kullanılarak yeni şifre belirlenir. Token 1 saat geçerlidir.
+ *     tags:
+ *       - Authentication
+ *     parameters:
+ *       - in: path
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: E-posta ile gönderilen şifre sıfırlama token'ı
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - password
+ *             properties:
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: newPassword123
+ *                 description: Yeni şifre (en az 8 karakter)
+ *     responses:
+ *       200:
+ *         description: Şifre başarıyla değiştirildi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Şifreniz başarıyla değiştirildi. Giriş yapabilirsiniz.
+ *       400:
+ *         description: Geçersiz veya süresi dolmuş token / Yeni şifre zorunludur
+ *       500:
+ *         description: Sunucu hatası
+ */
+router.post("/reset-password/:token", resetPassword);
 
 /**
  * @swagger
@@ -555,5 +644,57 @@ router.get("/followers", verifyAccessToken, getFollowers);
  *         description: Arama terimi çok kısa
  */
 router.get("/users/search", verifyAccessToken, searchUsers);
+
+/**
+ * @swagger
+ * /auth/change-password:
+ *   put:
+ *     summary: Şifre değiştir
+ *     description: Giriş yapmış kullanıcının mevcut şifresini doğrulayarak yeni şifre belirlemesini sağlar.
+ *     tags:
+ *       - Authentication
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *                 format: password
+ *                 example: oldPassword123
+ *                 description: Mevcut şifre
+ *               newPassword:
+ *                 type: string
+ *                 format: password
+ *                 example: newPassword456
+ *                 description: Yeni şifre (en az 8 karakter)
+ *     responses:
+ *       200:
+ *         description: Şifre başarıyla değiştirildi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Şifreniz başarıyla değiştirildi.
+ *       400:
+ *         description: Mevcut şifre ve yeni şifre zorunludur / Yeni şifre en az 8 karakter olmalıdır
+ *       401:
+ *         description: Mevcut şifre yanlış / Yetkilendirme hatası
+ *       404:
+ *         description: Kullanıcı bulunamadı
+ *       500:
+ *         description: Sunucu hatası
+ */
+router.put("/change-password", verifyAccessToken, changePassword);
 
 module.exports = router;

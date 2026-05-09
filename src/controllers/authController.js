@@ -4,7 +4,7 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const { createNotification } = require("@/services/notificationService");
-const { sendVerificationEmail } = require("@/services/emailService");
+const { sendVerificationEmail, sendPasswordResetEmail } = require("@/services/emailService");
 const logger = require("@/config/loggerConfig");
 
 const isProduction = process.env.NODE_ENV === "production";
@@ -652,6 +652,104 @@ const resendVerification = async (req, res) => {
   }
 };
 
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: "E-posta adresi zorunludur." });
+    }
+
+    const user = await User.findOne({ email });
+
+    // Kullanıcı bulunamazsa da aynı mesajı döndür (güvenlik)
+    if (!user) {
+      return res.status(200).json({ message: "Eğer hesap mevcutsa şifre sıfırlama e-postası gönderildi." });
+    }
+
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    user.passwordResetToken = resetToken;
+    user.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 saat
+    await user.save();
+
+    res.status(200).json({ message: "Eğer hesap mevcutsa şifre sıfırlama e-postası gönderildi." });
+
+    sendPasswordResetEmail(email, resetToken).catch((err) =>
+      logger.error(`Şifre sıfırlama e-postası gönderilemedi: ${err.message}`)
+    );
+  } catch (error) {
+    res.status(500).json({ message: "Şifre sıfırlama işlemi başarısız.", error: error.message });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ message: "Yeni şifre zorunludur." });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ message: "Şifre en az 8 karakter olmalıdır." });
+    }
+
+    const user = await User.findOne({
+      passwordResetToken: token,
+      passwordResetExpires: { $gt: new Date() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: "Geçersiz veya süresi dolmuş sıfırlama linki." });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+    user.passwordResetToken = null;
+    user.passwordResetExpires = null;
+    await user.save();
+
+    // Mevcut oturumları sonlandır
+    await Token.deleteMany({ userId: user._id });
+
+    res.status(200).json({ message: "Şifreniz başarıyla değiştirildi. Giriş yapabilirsiniz." });
+  } catch (error) {
+    res.status(500).json({ message: "Şifre sıfırlama işlemi başarısız.", error: error.message });
+  }
+};
+
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Mevcut şifre ve yeni şifre zorunludur." });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: "Yeni şifre en az 8 karakter olmalıdır." });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: "Kullanıcı bulunamadı." });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Mevcut şifre yanlış." });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+
+    res.status(200).json({ message: "Şifreniz başarıyla değiştirildi." });
+  } catch (error) {
+    res.status(500).json({ message: "Şifre değiştirme işlemi başarısız.", error: error.message });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -659,6 +757,9 @@ module.exports = {
   logout,
   verifyEmail,
   resendVerification,
+  forgotPassword,
+  resetPassword,
+  changePassword,
   uploadAvatar,
   deleteAvatar,
   updateProfile,

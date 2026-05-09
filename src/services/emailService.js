@@ -118,4 +118,55 @@ const sendVerificationEmail = async (email, token) => {
   });
 };
 
-module.exports = { sendVerificationEmail };
+const sendPasswordResetEmail = async (email, token) => {
+  const resetUrl = `${process.env.FRONTEND_URL}/auth/reset-password/${token}`;
+
+  const content = `
+    <h2 style="margin:0 0 8px 0; font-size:22px; font-weight:700; color:#1E293B;">Şifre Sıfırlama</h2>
+    <p style="margin:0 0 24px 0; font-size:15px; color:#64748B; line-height:1.7;">
+      Hesabınız için şifre sıfırlama talebinde bulundunuz.<br/>
+      Aşağıdaki butona tıklayarak yeni şifrenizi belirleyebilirsiniz.
+    </p>
+
+    <table cellpadding="0" cellspacing="0" style="margin:0 0 28px 0;">
+      <tr>
+        <td style="background:linear-gradient(135deg,#4F46E5 0%,#0EA5E9 100%); border-radius:8px;">
+          <a href="${resetUrl}"
+            style="display:inline-block; padding:14px 32px; color:#ffffff; text-decoration:none; font-size:15px; font-weight:700; letter-spacing:0.3px;">
+            🔑&nbsp; Şifremi Sıfırla
+          </a>
+        </td>
+      </tr>
+    </table>
+
+    <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:16px 20px; margin-bottom:24px;">
+      <p style="margin:0; font-size:13px; color:#64748B; line-height:1.6;">
+        Butona tıklayamıyorsanız aşağıdaki linki tarayıcınıza kopyalayın:<br/>
+        <a href="${resetUrl}" style="color:#4F46E5; word-break:break-all; font-size:12px;">${resetUrl}</a>
+      </p>
+    </div>
+
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="background:#FFF7ED; border-left:3px solid #F59E0B; border-radius:0 6px 6px 0; padding:12px 16px;">
+          <p style="margin:0; font-size:13px; color:#92400E;">
+            ⏰ Bu sıfırlama linki <strong>1 saat</strong> geçerlidir.
+          </p>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin:24px 0 0 0; font-size:13px; color:#94A3B8;">
+      Bu talebi siz yapmadıysanız bu e-postayı görmezden gelebilirsiniz. Şifreniz değişmeyecektir.
+    </p>
+  `;
+
+  await brevoClient.transactionalEmails.sendTransacEmail({
+    sender: { name: "DevSync", email: process.env.BREVO_SENDER_EMAIL },
+    to: [{ email }],
+    subject: "DevSync — Şifre Sıfırlama",
+    htmlContent: buildEmailLayout(content),
+  });
+};
+
+module.exports = { sendVerificationEmail, sendPasswordResetEmail };
